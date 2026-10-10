@@ -31,7 +31,7 @@ node scripts/construir.mjs --servidor https://TU-SISTEMA.up.railway.app --salida
 .\scripts\firmar.ps1 -Archivo .\dist\agente.exe -Huella <huella>
 # 3) WinSW: copiar WinSW-x64.exe como instalador\gh-agente-servicio.exe (el .xml ya está junto)
 # 4) instalador
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DVersion=1.7.0 instalador\agente.iss
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DVersion=1.7.1 instalador\agente.iss
 .\scripts\firmar.ps1 -Archivo .\dist\GastronomyHub-Agente-Setup.exe -Huella <huella>
 ```
 
