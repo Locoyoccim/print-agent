@@ -1,10 +1,10 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-/** Dónde vive config.json cuando el agente corre instalado (Windows): C:\ProgramData\GastronomyHub\agente. */
+/** Dónde vive config.json cuando el agente corre instalado (Windows): C:\ProgramData\NexoMesa\agente. */
 export function carpetaDatos(env = process.env, plataforma = process.platform) {
-  if (plataforma === "win32") return join(env.ProgramData ?? "C:\\ProgramData", "GastronomyHub", "agente");
-  return join(env.HOME ?? ".", ".gastronomyhub", "agente");
+  if (plataforma === "win32") return join(env.ProgramData ?? "C:\\ProgramData", "NexoMesa", "agente");
+  return join(env.HOME ?? ".", ".nexomesa", "agente");
 }
 
 /**

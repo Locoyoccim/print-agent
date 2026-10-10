@@ -1,8 +1,8 @@
-; Instalador del agente de impresion de Gastronomy Hub (Inno Setup 6: https://jrsoftware.org/isinfo.php).
+; Instalador del agente de impresion de NexoMesa (Inno Setup 6: https://jrsoftware.org/isinfo.php).
 ; Compilar en Windows con:  ISCC.exe /DVersion=1.7.1 agente.iss   (ver LEEME.md: antes hay que construir y firmar agente.exe)
 ;
 ; Instalacion normal:   doble clic, escribir el codigo de Impresoras -> Agentes y listo.
-; Desatendida:          GastronomyHub-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345
+; Desatendida:          NexoMesa-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345
 ; Actualizar a mano:    volver a ejecutar el instalador; con el campo del codigo vacio conserva la configuracion actual.
 
 #ifndef Version
@@ -11,20 +11,20 @@
 
 [Setup]
 AppId={{6C1E0B7A-7D0B-4B8E-9D55-5C0B6F2A4E11}
-AppName=Gastronomy Hub - Agente de impresion
+AppName=NexoMesa - Agente de impresion
 AppVersion={#Version}
-AppPublisher=Gastronomy Hub
-DefaultDirName={commonpf}\GastronomyHub\Agente
+AppPublisher=NexoMesa
+DefaultDirName={commonpf}\NexoMesa\Agente
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
-OutputBaseFilename=GastronomyHub-Agente-Setup
+OutputBaseFilename=NexoMesa-Agente-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName=Gastronomy Hub - Agente de impresion
+UninstallDisplayName=NexoMesa - Agente de impresion
 ; Descomentar y ajustar para firmar el instalador (certificado de firma de codigo; ver LEEME.md):
 ; SignTool=firma $f
 
@@ -39,16 +39,16 @@ Source: "gh-agente-servicio.xml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\agente.exe"; Flags: dontcopy
 
 [Dirs]
-Name: "{commonappdata}\GastronomyHub\agente"
-Name: "{commonappdata}\GastronomyHub\agente\logs"
+Name: "{commonappdata}\NexoMesa\agente"
+Name: "{commonappdata}\NexoMesa\agente\logs"
 
 [Run]
 ; config.json trae el token: solo SYSTEM y Administradores (SIDs, valen en cualquier idioma de Windows).
-Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\GastronomyHub\agente"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"; Flags: runhidden; StatusMsg: "Protegiendo la configuracion..."
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\NexoMesa\agente"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"; Flags: runhidden; StatusMsg: "Protegiendo la configuracion..."
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "install"; Flags: runhidden; StatusMsg: "Registrando el servicio..."
 ; Reinicio automatico si el agente se cae o se reinicia al actualizarse (cualquier salida distinta de 0 cuenta como falla).
-Filename: "{sys}\sc.exe"; Parameters: "failure GastronomyHubAgente reset= 3600 actions= restart/5000/restart/30000/restart/60000"; Flags: runhidden
-Filename: "{sys}\sc.exe"; Parameters: "failureflag GastronomyHubAgente 1"; Flags: runhidden
+Filename: "{sys}\sc.exe"; Parameters: "failure NexoMesaAgente reset= 3600 actions= restart/5000/restart/30000/restart/60000"; Flags: runhidden
+Filename: "{sys}\sc.exe"; Parameters: "failureflag NexoMesaAgente 1"; Flags: runhidden
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "start"; Flags: runhidden; StatusMsg: "Iniciando el agente..."
 
 [UninstallRun]
@@ -57,7 +57,7 @@ Filename: "{app}\gh-agente-servicio.exe"; Parameters: "uninstall"; Flags: runhid
 
 [UninstallDelete]
 ; Al desinstalar se borra tambien la configuracion (trae el token del agente): para volver a usarlo se genera un codigo nuevo.
-Type: filesandordirs; Name: "{commonappdata}\GastronomyHub\agente"
+Type: filesandordirs; Name: "{commonappdata}\NexoMesa\agente"
 
 [Code]
 var
@@ -70,7 +70,7 @@ end;
 
 function ConfigExistente: Boolean;
 begin
-  Result := FileExists(ExpandConstant('{commonappdata}\GastronomyHub\agente\config.json'));
+  Result := FileExists(ExpandConstant('{commonappdata}\NexoMesa\agente\config.json'));
 end;
 
 procedure InitializeWizard;
@@ -97,8 +97,8 @@ var
   Lineas: TArrayOfString;
 begin
   ExtractTemporaryFile('agente.exe');
-  ForceDirectories(ExpandConstant('{commonappdata}\GastronomyHub\agente'));
-  Cfg := ExpandConstant('{commonappdata}\GastronomyHub\agente\config.json');
+  ForceDirectories(ExpandConstant('{commonappdata}\NexoMesa\agente'));
+  Cfg := ExpandConstant('{commonappdata}\NexoMesa\agente\config.json');
   Salida := ExpandConstant('{tmp}\emparejar.txt');
   Comando := '/C ""' + ExpandConstant('{tmp}\agente.exe') + '" emparejar "' + Codigo + '" --config "' + Cfg + '" > "' + Salida + '" 2>&1"';
   if not Exec(ExpandConstant('{cmd}'), Comando, '', SW_HIDE, ewWaitUntilTerminated, Codigo2) then

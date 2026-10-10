@@ -21,7 +21,7 @@ const SERVIDOR_INCLUIDO = typeof __SERVIDOR_POR_DEFECTO__ === "string" ? __SERVI
 const instalado = isSea();
 const args = analizarArgs(process.argv.slice(2));
 
-// config.json: --config, AGENT_CONFIG, el de la carpeta del agente (modo desarrollo) o C:\ProgramData\GastronomyHub\agente (instalado).
+// config.json: --config, AGENT_CONFIG, el de la carpeta del agente (modo desarrollo) o C:\ProgramData\NexoMesa\agente (instalado).
 function rutaConfig() {
   if (args.config) return args.config;
   if (process.env.AGENT_CONFIG) return process.env.AGENT_CONFIG;

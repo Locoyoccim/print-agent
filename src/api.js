@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-// Cliente del servidor de Gastronomy Hub. Solo habla con /api/agente/*, autenticado con el token del agente.
+// Cliente del servidor de NexoMesa. Solo habla con /api/agente/*, autenticado con el token del agente.
 export function crearApi({ servidor, token, timeoutMs = 10000, fetchFn = fetch }) {
   const base = servidor.replace(/\/+$/, "");
 

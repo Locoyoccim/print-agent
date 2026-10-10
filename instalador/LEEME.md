@@ -6,15 +6,15 @@
 
 ## Qué hace
 
-1. El cliente baja `GastronomyHub-Agente-Setup.exe` (el enlace sale en **Impresoras → Agentes** cuando está publicado).
+1. El cliente baja `NexoMesa-Agente-Setup.exe` (el enlace sale en **Impresoras → Agentes** cuando está publicado).
 2. En el sistema crea un agente → aparece un **código `XXXX-XXXX`** (15 min, un solo uso).
 3. Ejecuta el instalador, escribe el código y termina. El instalador **valida el código antes de copiar nada**; instala `agente.exe` en
-   `C:\Program Files\GastronomyHub\Agente`, guarda `config.json` en `C:\ProgramData\GastronomyHub\agente` (solo SYSTEM y
-   Administradores) y registra el servicio **GastronomyHubAgente** (arranca con Windows y se reinicia solo si falla).
+   `C:\Program Files\NexoMesa\Agente`, guarda `config.json` en `C:\ProgramData\NexoMesa\agente` (solo SYSTEM y
+   Administradores) y registra el servicio **NexoMesaAgente** (arranca con Windows y se reinicia solo si falla).
 4. Todo es tráfico saliente (HTTPS): no se abren puertos.
 5. **Varias PCs:** se ejecuta el instalador en cada una con un código distinto (un agente por PC). Después, en **Impresoras**, cada impresora se asigna a la PC que la alcanza (**PC que la imprime**); sin asignar la toma cualquier agente. Requiere la migración `055_impresora_agente.sql` en el servidor.
 
-Desatendido: `GastronomyHub-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345`. Actualizar a mano: volver a ejecutarlo con el código vacío
+Desatendido: `NexoMesa-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345`. Actualizar a mano: volver a ejecutarlo con el código vacío
 (conserva la configuración). Normalmente no hace falta: el agente **se actualiza solo** (ver abajo).
 
 ## Construir (en una PC con Windows, o el .exe desde otro sistema)
@@ -32,7 +32,7 @@ node scripts/construir.mjs --servidor https://TU-SISTEMA.up.railway.app --salida
 # 3) WinSW: copiar WinSW-x64.exe como instalador\gh-agente-servicio.exe (el .xml ya está junto)
 # 4) instalador
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DVersion=1.7.1 instalador\agente.iss
-.\scripts\firmar.ps1 -Archivo .\dist\GastronomyHub-Agente-Setup.exe -Huella <huella>
+.\scripts\firmar.ps1 -Archivo .\dist\NexoMesa-Agente-Setup.exe -Huella <huella>
 ```
 
 `--servidor` queda **dentro** del ejecutable: quien instala solo escribe el código. Es una sola dirección para todos los clientes (el
@@ -53,13 +53,13 @@ sistema es el mismo; cada código ya trae su empresa). Para otro entorno (prueba
 ## Lista de comprobación en Windows (primera vez)
 
 - [ ] El instalador compila y, con un código malo, se queda en la página del código sin copiar nada.
-- [ ] Con un código bueno: servicio `GastronomyHubAgente` en *Servicios*, en ejecución y en inicio automático; `config.json` solo
+- [ ] Con un código bueno: servicio `NexoMesaAgente` en *Servicios*, en ejecución y en inicio automático; `config.json` solo
       legible por Administradores/SYSTEM (`icacls`); el agente aparece **conectado** en el sistema.
 - [ ] Con dos PCs instaladas y cada impresora asignada a la suya, cada PC imprime solo lo suyo (la otra no reclama sus trabajos).
 - [ ] Con una impresora de red apagada, las demás siguen imprimiendo sin demora y los trabajos de la apagada quedan con error claro (no duplicados al volver).
 - [ ] Imprime una página de prueba en una impresora **de red** y en una **USB** (la ruta USB usa PowerShell: probar con el driver real).
 - [ ] Matar `agente.exe` desde el Administrador de tareas: Windows lo levanta solo (comprueba que la recuperación del servicio por
-      código de salida ≠ 0 funciona; si no, revisar `sc qfailure GastronomyHubAgente`).
+      código de salida ≠ 0 funciona; si no, revisar `sc qfailure NexoMesaAgente`).
 - [ ] Actualización: publicar una versión de prueba y comprobar que se instala sola, que el servicio se reinicia (código 3) y que una
       versión rota regresa a la anterior. **Es lo más delicado**: renombrar el `.exe` en uso y el reinicio por código 3 dependen de Windows.
 - [ ] SmartScreen no bloquea el instalador firmado.

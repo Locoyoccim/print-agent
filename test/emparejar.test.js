@@ -21,8 +21,8 @@ test("analizarArgs: correr, emparejar con opciones, version y errores", () => {
 });
 
 test("carpetaDatos: ProgramData en Windows", () => {
-  assert.equal(carpetaDatos({ ProgramData: "D:\\PD" }, "win32"), join("D:\\PD", "GastronomyHub", "agente"));
-  assert.equal(carpetaDatos({ HOME: "/home/x" }, "linux"), join("/home/x", ".gastronomyhub", "agente"));
+  assert.equal(carpetaDatos({ ProgramData: "D:\\PD" }, "win32"), join("D:\\PD", "NexoMesa", "agente"));
+  assert.equal(carpetaDatos({ HOME: "/home/x" }, "linux"), join("/home/x", ".nexomesa", "agente"));
 });
 
 test("emparejar: manda el codigo y devuelve servidor, token y zona de la empresa", async () => {

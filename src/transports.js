@@ -43,7 +43,7 @@ public class RawPrinter {
     IntPtr h;
     if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("No se encontro la impresora '" + printer + "' en Windows (error " + Marshal.GetLastWin32Error() + ")");
     try {
-      var di = new DOCINFO { pDocName = "Gastronomy Hub", pDataType = "RAW" };
+      var di = new DOCINFO { pDocName = "NexoMesa", pDataType = "RAW" };
       if (!StartDocPrinter(h, 1, di)) throw new Exception("StartDocPrinter fallo (" + Marshal.GetLastWin32Error() + ")");
       try {
         StartPagePrinter(h);

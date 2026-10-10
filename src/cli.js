@@ -23,7 +23,7 @@ export function analizarArgs(args) {
   return r;
 }
 
-export const AYUDA = `Agente de impresion de Gastronomy Hub
+export const AYUDA = `Agente de impresion de NexoMesa
 
 Uso:
   agente                      Corre el agente (lee config.json)

@@ -1,4 +1,4 @@
-# Agente de impresión — Gastronomy Hub
+# Agente de impresión — NexoMesa
 
 Programa pequeño que se instala **una vez en la PC de caja (Windows)**. Consulta cada ~2 segundos al sistema si hay comandas o tickets por imprimir y los manda a la impresora correcta, por **red (IP)** o **USB**. Así las tablets de los meseros no necesitan estar conectadas a ninguna impresora.
 
@@ -14,10 +14,10 @@ El agente siempre inicia la conexión hacia el sistema (HTTPS saliente): **no ha
 ## Instalación (instalador de un paso)
 
 1. En el sistema: **Punto de venta → Impresoras → Agentes → Nuevo agente**. Aparece un **código `XXXX-XXXX`** (vale 15 minutos y se usa una sola vez) y el enlace para bajar el instalador.
-2. En la PC de caja ejecuta `GastronomyHub-Agente-Setup.exe`, escribe el código y termina. No necesitas instalar Node ni tocar archivos: el instalador deja el agente como **servicio de Windows** (arranca con la PC y se reinicia si falla).
+2. En la PC de caja ejecuta `NexoMesa-Agente-Setup.exe`, escribe el código y termina. No necesitas instalar Node ni tocar archivos: el instalador deja el agente como **servicio de Windows** (arranca con la PC y se reinicia si falla).
 3. En el sistema, el agente debe aparecer como **conectado**. Da de alta cada impresora y usa **Imprimir página de prueba**.
 
-El agente **se actualiza solo** (descarga la versión nueva, verifica su hash y se reinicia; si la nueva no arranca, vuelve a la anterior). Cómo construir y publicar el instalador, y la lista de comprobación en Windows: [`instalador/LEEME.md`](instalador/LEEME.md). Por línea de comandos: `agente.exe emparejar CODIGO` guarda `config.json` en `C:\ProgramData\GastronomyHub\agente`, y `agente.exe --version` muestra la versión.
+El agente **se actualiza solo** (descarga la versión nueva, verifica su hash y se reinicia; si la nueva no arranca, vuelve a la anterior). Cómo construir y publicar el instalador, y la lista de comprobación en Windows: [`instalador/LEEME.md`](instalador/LEEME.md). Por línea de comandos: `agente.exe emparejar CODIGO` guarda `config.json` en `C:\ProgramData\NexoMesa\agente`, y `agente.exe --version` muestra la versión.
 
 > El instalador de Windows aún no se ha compilado ni probado en una PC con Windows (ver el LEEME). El emparejamiento y la actualización sí tienen pruebas automáticas y una prueba real con el ejecutable en macOS.
 
@@ -26,7 +26,7 @@ El agente **se actualiza solo** (descarga la versión nueva, verifica su hash y 
 Sirve para probar desde el código fuente. Requiere [Node.js 20 o superior](https://nodejs.org).
 
 1. En el sistema: **Punto de venta → Impresoras → Agentes → Nuevo agente**. Copia el token (`gh_agt_...`); solo se muestra una vez (o, en vez de pegarlo, canjea el código: `node src/index.js emparejar CODIGO --servidor https://tu-sistema`).
-2. Copia esta carpeta a la PC de caja, por ejemplo `C:\GastronomyHub\print-agent`.
+2. Copia esta carpeta a la PC de caja, por ejemplo `C:\NexoMesa\print-agent`.
 3. Copia `config.ejemplo.json` como `config.json` y llénalo:
 
 ```json
@@ -47,15 +47,15 @@ Sirve para probar desde el código fuente. Requiere [Node.js 20 o superior](http
 Con [NSSM](https://nssm.cc) (en una terminal como administrador):
 
 ```
-nssm install GastronomyHubPrint "C:\Program Files\nodejs\node.exe" "C:\GastronomyHub\print-agent\src\index.js"
-nssm set GastronomyHubPrint AppDirectory "C:\GastronomyHub\print-agent"
-nssm set GastronomyHubPrint AppStdout "C:\GastronomyHub\print-agent\agente.log"
-nssm set GastronomyHubPrint AppStderr "C:\GastronomyHub\print-agent\agente.log"
-nssm set GastronomyHubPrint Start SERVICE_AUTO_START
-nssm start GastronomyHubPrint
+nssm install NexoMesaPrint "C:\Program Files\nodejs\node.exe" "C:\NexoMesa\print-agent\src\index.js"
+nssm set NexoMesaPrint AppDirectory "C:\NexoMesa\print-agent"
+nssm set NexoMesaPrint AppStdout "C:\NexoMesa\print-agent\agente.log"
+nssm set NexoMesaPrint AppStderr "C:\NexoMesa\print-agent\agente.log"
+nssm set NexoMesaPrint Start SERVICE_AUTO_START
+nssm start NexoMesaPrint
 ```
 
-Para actualizar: `nssm stop GastronomyHubPrint`, reemplaza los archivos y `nssm start GastronomyHubPrint`.
+Para actualizar: `nssm stop NexoMesaPrint`, reemplaza los archivos y `nssm start NexoMesaPrint`.
 
 ## Cómo se dan de alta las impresoras
 
@@ -70,7 +70,7 @@ Cada impresora atiende **un área** (Cocina, Barra...) o es la **impresora de ti
 
 ## Si algo falla
 
-- **El sistema dice "agente desconectado"**: la PC está apagada, sin internet, o el servicio no corre (`nssm status GastronomyHubPrint`). Las comandas **no se pierden**: quedan en cola y salen al reconectar.
+- **El sistema dice "agente desconectado"**: la PC está apagada, sin internet, o el servicio no corre (`nssm status NexoMesaPrint`). Las comandas **no se pierden**: quedan en cola y salen al reconectar.
 - **"El servidor rechazó el token"**: el token cambió o el agente se desactivó. Genera uno nuevo en Impresoras y actualiza `config.json`.
 - **Las comandas salen con símbolos raros en lugar de acentos**: cambia `paginaCodigos` (19 = CP858; prueba 2 = CP850 o 16 = WPC1252) y reinicia el servicio. La hoja de prueba incluye `á é í ó ú ñ` para verificarlo.
 - **Una impresora no recibe nada y otra sí**: con varias PCs, revisa que la impresora tenga elegida la **PC que la imprime** correcta y que esa PC esté conectada.
