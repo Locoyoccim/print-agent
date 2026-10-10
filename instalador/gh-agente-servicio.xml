@@ -1,0 +1,22 @@
+<!-- Servicio de Windows del agente (WinSW: https://github.com/winsw/winsw). El instalador lo copia junto a gh-agente-servicio.exe
+     (el WinSW-x64.exe renombrado): el .exe y el .xml deben llamarse igual. -->
+<service>
+  <id>GastronomyHubAgente</id>
+  <name>Gastronomy Hub - Agente de impresion</name>
+  <description>Lleva las comandas y tickets del sistema a las impresoras termicas de este local.</description>
+  <executable>%BASE%\agente.exe</executable>
+  <env name="AGENT_CONFIG" value="%ProgramData%\GastronomyHub\agente\config.json"/>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <stoptimeout>20 sec</stoptimeout>
+  <!-- Si el agente termina con error (o con el codigo 3 que usa para reiniciarse tras actualizarse), Windows lo vuelve a levantar. -->
+  <onfailure action="restart" delay="5 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <logpath>%ProgramData%\GastronomyHub\agente\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>5120</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

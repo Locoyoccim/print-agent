@@ -1,0 +1,18 @@
+{
+  "name": "gastronomy-print-agent",
+  "version": "1.7.0",
+  "description": "Agente de impresion de Gastronomy Hub: lleva comandas y tickets del sistema a impresoras termicas por red y USB (Windows).",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "construir": "node scripts/construir.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "postject": "^1.0.0-alpha.6"
+  }
+}

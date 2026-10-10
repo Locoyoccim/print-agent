@@ -1,0 +1,7 @@
+{
+  "servidor": "https://tu-sistema.up.railway.app",
+  "token": "gh_agt_PEGA_AQUI_EL_TOKEN",
+  "intervaloMs": 2000,
+  "zonaHoraria": "America/Mexico_City",
+  "paginaCodigos": 19
+}

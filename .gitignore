@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# config.json lleva el token del agente: nunca se versiona (usa config.ejemplo.json como plantilla)
+config.json
+*.log
+.DS_Store
+instalador/gh-agente-servicio.exe
