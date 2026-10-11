@@ -42,20 +42,21 @@ Sirve para probar desde el código fuente. Requiere [Node.js 20 o superior](http
 4. Prueba en una terminal: `node src\index.js`. Debe decir `Agente de impresion ... conectado`. En el sistema, la pantalla de Impresoras mostrará el agente como **conectado**.
 5. En **Impresoras** da de alta cada impresora y usa **Imprimir página de prueba**.
 
-### Que arranque solo con Windows (servicio)
+### Que arranque solo con Windows (Programador de tareas)
 
-Con [NSSM](https://nssm.cc) (en una terminal como administrador):
+Sin descargar nada. En PowerShell **como administrador** (cambia `$dir` si tu carpeta es otra):
 
+```powershell
+$dir = "C:\NexoMesa\print-agent"
+$node = (Get-Command node).Source
+$accion = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"`"$node`" src\index.js >> agente.log 2>&1`"" -WorkingDirectory $dir
+$disparador = New-ScheduledTaskTrigger -AtStartup
+$ajustes = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+Register-ScheduledTask -TaskName "NexoMesaAgente" -Action $accion -Trigger $disparador -Settings $ajustes -User "SYSTEM" -RunLevel Highest -Force
+Start-ScheduledTask -TaskName "NexoMesaAgente"
 ```
-nssm install NexoMesaPrint "C:\Program Files\nodejs\node.exe" "C:\NexoMesa\print-agent\src\index.js"
-nssm set NexoMesaPrint AppDirectory "C:\NexoMesa\print-agent"
-nssm set NexoMesaPrint AppStdout "C:\NexoMesa\print-agent\agente.log"
-nssm set NexoMesaPrint AppStderr "C:\NexoMesa\print-agent\agente.log"
-nssm set NexoMesaPrint Start SERVICE_AUTO_START
-nssm start NexoMesaPrint
-```
 
-Para actualizar: `nssm stop NexoMesaPrint`, reemplaza los archivos y `nssm start NexoMesaPrint`.
+Debe quedar en `Running` (`Get-ScheduledTask -TaskName NexoMesaAgente`) y el log en `agente.log`. Detener: `Stop-ScheduledTask -TaskName NexoMesaAgente`; quitar: `Unregister-ScheduledTask -TaskName NexoMesaAgente -Confirm:$false`. Para actualizar: detén la tarea, reemplaza los archivos y vuelve a iniciarla. (Alternativa con servicio: [NSSM](https://nssm.cc).)
 
 ## Cómo se dan de alta las impresoras
 
@@ -70,7 +71,7 @@ Cada impresora atiende **un área** (Cocina, Barra...) o es la **impresora de ti
 
 ## Si algo falla
 
-- **El sistema dice "agente desconectado"**: la PC está apagada, sin internet, o el servicio no corre (`nssm status NexoMesaPrint`). Las comandas **no se pierden**: quedan en cola y salen al reconectar.
+- **El sistema dice "agente desconectado"**: la PC está apagada, sin internet, o el servicio no corre (`Get-ScheduledTask -TaskName NexoMesaAgente`). Las comandas **no se pierden**: quedan en cola y salen al reconectar.
 - **"El servidor rechazó el token"**: el token cambió o el agente se desactivó. Genera uno nuevo en Impresoras y actualiza `config.json`.
 - **Las comandas salen con símbolos raros en lugar de acentos**: cambia `paginaCodigos` (19 = CP858; prueba 2 = CP850 o 16 = WPC1252) y reinicia el servicio. La hoja de prueba incluye `á é í ó ú ñ` para verificarlo.
 - **Una impresora no recibe nada y otra sí**: con varias PCs, revisa que la impresora tenga elegida la **PC que la imprime** correcta y que esa PC esté conectada.
