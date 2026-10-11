@@ -26,7 +26,7 @@ El agente **se actualiza solo** (descarga la versión nueva, verifica su hash y 
 Sirve para probar desde el código fuente. Requiere [Node.js 20 o superior](https://nodejs.org).
 
 1. En el sistema: **Punto de venta → Impresoras → Agentes → Nuevo agente**. Copia el token (`gh_agt_...`); solo se muestra una vez (o, en vez de pegarlo, canjea el código: `node src/index.js emparejar CODIGO --servidor https://tu-sistema`).
-2. Copia esta carpeta a la PC de caja, por ejemplo `C:\NexoMesa\print-agent`.
+2. Copia esta carpeta a la PC de caja, por ejemplo `C:\NexoMesa\print-agent` (si el repo es privado, baja el ZIP desde GitHub: *Code → Download ZIP*, descomprímelo completo y renombra la carpeta a `print-agent`).
 3. Copia `config.ejemplo.json` como `config.json` y llénalo:
 
 ```json
@@ -51,12 +51,12 @@ $dir = "C:\NexoMesa\print-agent"
 $node = (Get-Command node).Source
 $accion = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"`"$node`" src\index.js >> agente.log 2>&1`"" -WorkingDirectory $dir
 $disparador = New-ScheduledTaskTrigger -AtStartup
-$ajustes = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+$ajustes = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
 Register-ScheduledTask -TaskName "NexoMesaAgente" -Action $accion -Trigger $disparador -Settings $ajustes -User "SYSTEM" -RunLevel Highest -Force
 Start-ScheduledTask -TaskName "NexoMesaAgente"
 ```
 
-Debe quedar en `Running` (`Get-ScheduledTask -TaskName NexoMesaAgente`) y el log en `agente.log`. Detener: `Stop-ScheduledTask -TaskName NexoMesaAgente`; quitar: `Unregister-ScheduledTask -TaskName NexoMesaAgente -Confirm:$false`. Para actualizar: detén la tarea, reemplaza los archivos y vuelve a iniciarla. (Alternativa con servicio: [NSSM](https://nssm.cc).)
+**Laptop o PC con batería:** las dos opciones de batería son necesarias; sin ellas la tarea se queda en `Queued` y nunca arranca. Cierra antes cualquier agente que tengas corriendo a mano (dos agentes con el mismo token pueden imprimir doble). Debe quedar en `Running` (`Get-ScheduledTask -TaskName NexoMesaAgente`) y el log en `agente.log`. Detener: `Stop-ScheduledTask -TaskName NexoMesaAgente`; quitar: `Unregister-ScheduledTask -TaskName NexoMesaAgente -Confirm:$false`. Para actualizar: detén la tarea, reemplaza los archivos y vuelve a iniciarla. (Alternativa con servicio: [NSSM](https://nssm.cc).)
 
 ## Cómo se dan de alta las impresoras
 
