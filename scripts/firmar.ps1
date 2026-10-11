@@ -21,7 +21,7 @@ elseif ($Pfx) {
   $argumentos += @("/f", $Pfx, "/p", $texto)
 }
 else { throw "Indica -Huella o -Pfx" }
-& signtool.exe @args $Archivo
+& signtool.exe @argumentos $Archivo
 if ($LASTEXITCODE -ne 0) { throw "signtool fallo ($LASTEXITCODE)" }
 & signtool.exe verify /pa /v $Archivo | Select-Object -Last 3
 Write-Host "sha256 del archivo firmado:" (Get-FileHash $Archivo -Algorithm SHA256).Hash.ToLower()
