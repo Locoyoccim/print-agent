@@ -45,8 +45,9 @@ test("layout: la comanda trae area, mesa, mesero, notas y ningun precio", () => 
   const t = texto(render(comanda, { zona: "America/Mexico_City" }));
   assert.match(t, /COMANDA 2/);
   assert.match(t, /BARRA/);
-  assert.match(t, /Mesa 4\s+Folio 12/);
-  assert.match(t, /Mesero: Ana\s+Pers: 3/);
+  assert.match(t, /Mesa 4/);
+  assert.match(t, /Folio 12\s+Pers: 3/);
+  assert.match(t, /Mesero: Ana/);
   assert.match(t, /03\/10\/2026 14:35/);
   assert.match(t, /2  Latte/);
   assert.match(t, />> sin az\xa3car/, "la u con acento sale como 0xA3 en CP858");
@@ -123,7 +124,7 @@ const precuenta = {
   impresora: { ancho: 80 },
 };
 
-test("layout: la precuenta muestra importes, cortesia, descuento, total e IVA incluido", () => {
+test("layout: la precuenta muestra importes, cortesia, descuento y total, sin desglose de IVA", () => {
   const t = texto(render(precuenta));
   assert.match(t, /PRECUENTA/);
   assert.match(t, /2 Latte\s+110\.00/);
@@ -132,7 +133,7 @@ test("layout: la precuenta muestra importes, cortesia, descuento, total e IVA in
   assert.match(t, /Subtotal\s+310\.00/);
   assert.match(t, /Descuento\s+-80\.00/);
   assert.match(t, /TOTAL\s+230\.00/);
-  assert.match(t, /IVA incluido en el total\s+31\.72/);
+  assert.doesNotMatch(t, /IVA/, "el IVA no se desglosa en el ticket");
   assert.match(t, /no es un comprobante de pago/);
 });
 
@@ -140,7 +141,7 @@ test("layout: la precuenta sin descuento no imprime la linea de descuento", () =
   const p = { ...precuenta, payload: { ...precuenta.payload, totales: { subtotal: 230, descuento: 0, iva: 0, total: 230 } } };
   const t = texto(render(p));
   assert.doesNotMatch(t, /Descuento/);
-  assert.doesNotMatch(t, /IVA incluido/);
+  assert.doesNotMatch(t, /IVA/);
 });
 
 test("layout: precuenta de una cuenta para llevar muestra el nombre del cliente", () => {
@@ -273,3 +274,96 @@ test("layout: un corte cerrado reimpreso con correcciones posteriores aclara com
   assert.doesNotMatch(sin, /correccion/);
 });
 
+
+// ---- encabezado del negocio, sin IVA, precio por pieza, comanda con la mesa en grande, referencia de la propina ----
+const GRANDE = Buffer.from([0x1d, 0x21, 0x11]); // GS ! 0x11 = doble ancho y doble alto
+const conNegocio = (def, extra) => ({ ...def, payload: { ...def.payload, ...extra } });
+const DATOS = { negocio: "Café Aroma", direccion: "Av. Juárez 123, Col. Centro, Guadalajara", telefono: "33 1234 5678" };
+
+test("layout: precuenta, ticket y corte llevan nombre, direccion y telefono; sin ellos solo el nombre", () => {
+  const corte = {
+    tipo: "CORTE", impresora: { ancho: 80 },
+    payload: { tipo: "CORTE", negocio: "Café Aroma", turno: 3, cajero: "Luis", fecha_negocio: "2026-10-03", abierto_at: "2026-10-03T14:00:00.000Z", cerrado_at: null, impreso_at: "2026-10-03T20:35:00.000Z", fondo: 500, por_metodo: [], ventas: 0, propinas: 0, propinas_entregadas: 0, efectivo_esperado: 500, contado: null, diferencia: null },
+  };
+  for (const def of [precuenta, ticket, corte]) {
+    const t = texto(render(conNegocio(def, DATOS)));
+    assert.match(t, /Caf\x82 Aroma/, `${def.tipo}: nombre`);
+    assert.match(t, /Av\. Ju\xa0rez 123, Col\. Centro, Guadalajara/, `${def.tipo}: direccion`);
+    assert.match(t, /Tel\. 33 1234 5678/, `${def.tipo}: telefono`);
+    assert.doesNotMatch(t, /RFC/i, `${def.tipo}: el RFC no se imprime`);
+    const sin = texto(render(def));
+    assert.doesNotMatch(sin, /Tel\.|Av\./, `${def.tipo}: sin datos solo el nombre`);
+  }
+});
+
+test("layout: solo el telefono o solo la direccion tambien se imprimen (cada dato es opcional)", () => {
+  assert.match(texto(render(conNegocio(ticket, { telefono: "555 000" }))), /Tel\. 555 000/);
+  const soloDir = texto(render(conNegocio(ticket, { direccion: "Calle 5 #10" })));
+  assert.match(soloDir, /Calle 5 #10/);
+  assert.doesNotMatch(soloDir, /Tel\./);
+});
+
+test("layout: en 58 mm el nombre se parte a 16 columnas (doble ancho) y la direccion a 32", () => {
+  const def = { ...conNegocio(ticket, { negocio: "Cafetería y Restaurante Aroma del Centro", direccion: "Avenida Benito Juárez 1234 interior 5, Colonia Americana, Guadalajara" }), impresora: { ancho: 58 } };
+  const t = texto(render(def));
+  // Cada linea exacta (CP858: i con acento = 0xA1, u con acento = 0xA3 no aplica aqui; a con acento = 0xA0).
+  for (const linea of ["Cafeter\xa1a y", "Restaurante", "Aroma del Centro"]) {
+    assert.ok(t.includes(`${linea}\n`), `nombre: ${JSON.stringify(linea)}`);
+    assert.ok(linea.length <= 16, "cabe en 16 columnas de doble ancho");
+  }
+  for (const linea of ["Avenida Benito Ju\xa0rez 1234", "interior 5, Colonia Americana,", "Guadalajara"]) {
+    assert.ok(t.includes(`${linea}\n`), `direccion: ${JSON.stringify(linea)}`);
+    assert.ok(linea.length <= 32, "cabe en 32 columnas");
+  }
+});
+
+test("layout: el nombre del negocio sale en doble tamano", () => {
+  const b = render(ticket);
+  const i = b.indexOf(Buffer.from("Caf"));
+  assert.ok(i > 0 && b.subarray(Math.max(0, i - 12), i).includes(GRANDE), "doble ancho y alto antes del nombre");
+});
+
+test("layout: el ticket y la precuenta no desglosan el IVA aunque el payload lo traiga", () => {
+  for (const def of [precuenta, ticket]) {
+    const t = texto(render(conNegocio(def, { totales: { subtotal: 230, descuento: 0, iva: 31.72, total: 230 } })));
+    assert.doesNotMatch(t, /IVA/, def.tipo);
+    assert.doesNotMatch(t, /31\.72/, def.tipo);
+  }
+});
+
+test("layout: varias piezas aclaran el precio de una; una pieza o cortesia no", () => {
+  for (const def of [precuenta, ticket]) {
+    const t = texto(render(def));
+    assert.match(t, /2 Latte\s+110\.00\n\s+2 x 55\.00/, `${def.tipo}: 2 x 55.00 bajo el renglon`);
+    assert.doesNotMatch(t, /1 x /, `${def.tipo}: una pieza no lleva la aclaracion`);
+  }
+  const cortesia = texto(render(conNegocio(precuenta, { items: [{ cantidad: 3, nombre: "Postre", notas: null, precio: 80, importe: 0, cortesia: true }] })));
+  assert.doesNotMatch(cortesia, / x /);
+});
+
+test("layout: la referencia de una tarjeta que solo pago la propina sale junto a la propina, no bajo el efectivo", () => {
+  const pagos = [
+    { metodo: "EFECTIVO", monto: 230, propina: 0, recibido: 300, cambio: 70, referencia: null },
+    { metodo: "TARJETA", monto: 0, propina: 40, recibido: null, cambio: null, referencia: "4821" },
+  ];
+  const t = texto(render(conNegocio(ticket, { pagos, propina: 40, cambio: 70 })));
+  assert.match(t, /Efectivo\s+230\.00\n\s+Recibido\s+300\.00\nPropina \(Tarjeta\)\s+40\.00\n\s+Ref: 4821/);
+  assert.doesNotMatch(t, /Efectivo[^\n]*\n[^\n]*Ref: 4821/, "la referencia no queda bajo el efectivo");
+});
+
+test("layout: la comanda pone la mesa en grande y parte los nombres al ancho real del papel", () => {
+  const b = render(comanda);
+  const i = b.indexOf(Buffer.from("Mesa 4"));
+  assert.ok(i > 0 && b.subarray(Math.max(0, i - 12), i).includes(GRANDE), "la mesa va en doble ancho y alto");
+  const largo = texto(b);
+  // El renglon de 49 letras cabe en dos lineas (antes se partia en cuatro por mitad de ancho).
+  assert.match(largo, /1  Matcha Latte con leche de almendra extra\n[^\n]*caliente/);
+  const llevar = texto(render({ ...comanda, payload: { ...comanda.payload, mesa: null, llevar: "Luis" } }));
+  assert.match(llevar, /Llevar: Luis/);
+});
+
+test("layout: la hoja de prueba lleva el encabezado completo del negocio", () => {
+  const t = texto(render({ tipo: "PRUEBA", payload: { tipo: "PRUEBA", ...DATOS, impresora: "Barra", fecha: "2026-10-03T20:35:00.000Z" }, impresora: {} }));
+  assert.match(t, /Tel\. 33 1234 5678/);
+  assert.match(t, /Impresora: Barra/);
+});
