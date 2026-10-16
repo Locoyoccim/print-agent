@@ -51,6 +51,27 @@ export function fechaHora(iso, zona = "America/Mexico_City") {
 
 const regla = (t, n, c = "-") => t.linea(c.repeat(n));
 
+// Encabezado del ticket: nombre del negocio en grande y, si el negocio los capturo, direccion y telefono. Sin RFC: el ticket no es
+// comprobante fiscal. El nombre se parte a media fila porque en doble ancho solo caben n/2 columnas (si no, la impresora lo corta).
+function encabezadoNegocio(t, p, n) {
+  t.alinear("centro").negrita(true).tamano(2, 2);
+  for (const l of envolver(p.negocio ?? "", Math.floor(n / 2))) t.linea(l);
+  t.tamano(1, 1).negrita(false);
+  if (p.direccion) for (const l of envolver(p.direccion, n)) t.linea(l);
+  if (p.telefono) t.linea(`Tel. ${p.telefono}`);
+}
+
+// Renglon de precuenta y ticket: cantidad y nombre a la izquierda, importe a la derecha. Si son varias piezas se aclara el precio de una
+// (calculado del importe, que ya trae descuentos y opciones, para que siempre cuadre con lo que se cobra).
+function renglonImporte(t, item, n) {
+  const importe = item.cortesia ? "CORTESIA" : dinero(item.importe);
+  const [primera, ...resto] = envolver(`${item.cantidad} ${item.nombre}`, n - importe.length - 1);
+  t.linea(dosColumnas(primera ?? "", importe, n));
+  for (const l of resto) t.linea(`  ${l}`);
+  if (!item.cortesia && Number(item.cantidad) > 1) t.linea(`  ${item.cantidad} x ${dinero(Number(item.importe) / Number(item.cantidad))}`);
+  for (const o of item.opciones ?? []) for (const l of envolver(o, n - 4)) t.linea(`   + ${l}`);
+}
+
 function cabeceraCuenta(t, p, n, zona) {
   const destino = p.mesa ?? `Llevar: ${p.llevar ?? ""}`;
   t.negrita(true).linea(dosColumnas(destino, `Folio ${p.folio}`, n)).negrita(false);
@@ -68,12 +89,21 @@ export function renderComanda(p, { ancho = 80, zona, pagina } = {}) {
   if (p.tiempo > 1) t.negrita(true).tamano(2, 2).linea(`${p.tiempo}.o TIEMPO`).tamano(1, 1).negrita(false);
   t.alinear("izq");
   regla(t, n);
-  cabeceraCuenta(t, p, n, zona);
+  // A la cocina le importa, antes que nada, a QUE mesa va: en grande. Folio, personas y mesero quedan en letra normal.
+  t.alinear("centro").negrita(true).tamano(2, 2);
+  for (const l of envolver(p.mesa ?? `Llevar: ${p.llevar ?? ""}`, Math.floor(n / 2))) t.linea(l);
+  t.tamano(1, 1);
+  if (p.cliente) for (const l of envolver(String(p.cliente), n)) t.linea(l);
+  t.negrita(false).alinear("izq");
+  t.linea(dosColumnas(`Folio ${p.folio}`, p.personas ? `Pers: ${p.personas}` : "", n));
+  if (p.mesero) t.linea(`Mesero: ${p.mesero}`);
+  t.linea(fechaHora(p.fecha, zona));
   regla(t, n);
   for (const item of p.items) {
-    // Cantidad y nombre en doble alto para leerlos desde lejos; opciones y notas en negrita.
+    // Cantidad y nombre en doble alto para leerlos desde lejos; opciones y notas en negrita. El doble alto no ensancha las letras:
+    // el nombre se parte al ancho real del papel (antes se partia a la mitad, desperdiciando papel).
     const cab = `${item.cantidad}  `;
-    const lineas = envolver(item.nombre, Math.floor(n / 2) - cab.length);
+    const lineas = envolver(item.nombre, n - cab.length);
     t.negrita(true).tamano(1, 2);
     lineas.forEach((l, i) => t.linea(i === 0 ? cab + l : " ".repeat(cab.length) + l));
     t.tamano(1, 1);
@@ -90,26 +120,21 @@ export function renderComanda(p, { ancho = 80, zona, pagina } = {}) {
 export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
-  t.alinear("centro").negrita(true).tamano(2, 2).linea(p.negocio ?? "").tamano(1, 1).linea("PRECUENTA").negrita(false);
+  encabezadoNegocio(t, p, n);
+  t.negrita(true).linea("PRECUENTA").negrita(false);
   t.alinear("izq");
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
   regla(t, n);
   for (const item of p.items) {
-    const importe = item.cortesia ? "CORTESIA" : dinero(item.importe);
-    const ancho1 = n - importe.length - 1;
-    const [primera, ...resto] = envolver(`${item.cantidad} ${item.nombre}`, ancho1);
-    t.linea(dosColumnas(primera ?? "", importe, n));
-    for (const l of resto) t.linea(`  ${l}`);
-    for (const o of item.opciones ?? []) for (const l of envolver(o, n - 4)) t.linea(`   + ${l}`);
+    renglonImporte(t, item, n);
     if (item.notas) for (const l of envolver(item.notas, n - 4)) t.linea(`   ${l}`);
   }
   regla(t, n);
-  const { subtotal, descuento, total, iva } = p.totales;
+  const { subtotal, descuento, total } = p.totales;
   t.linea(dosColumnas("Subtotal", dinero(subtotal), n));
   if (descuento > 0) t.linea(dosColumnas("Descuento", `-${dinero(descuento)}`, n));
   t.negrita(true).tamano(1, 2).linea(dosColumnas("TOTAL", dinero(total), Math.floor(n))).tamano(1, 1).negrita(false);
-  if (iva > 0) t.linea(dosColumnas("IVA incluido en el total", dinero(iva), n));
   t.linea("");
   t.alinear("centro");
   for (const l of envolver("Precuenta: no es un comprobante de pago.", n)) t.linea(l);
@@ -123,37 +148,34 @@ export function renderTicket(p, { ancho = 80, zona, pagina, esCopia = false } = 
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
   if (p.abrir_cajon && !esCopia) t.abrirCajon();
-  t.alinear("centro").negrita(true).tamano(2, 2).linea(p.negocio ?? "").tamano(1, 1).linea("TICKET DE VENTA");
+  encabezadoNegocio(t, p, n);
+  t.negrita(true).linea("TICKET DE VENTA");
   if (esCopia) t.linea("*** COPIA ***");
   t.negrita(false).alinear("izq");
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
   if (p.cajero) t.linea(`Cajero: ${p.cajero}`);
   regla(t, n);
-  for (const item of p.items) {
-    const importe = item.cortesia ? "CORTESIA" : dinero(item.importe);
-    const [primera, ...resto] = envolver(`${item.cantidad} ${item.nombre}`, n - importe.length - 1);
-    t.linea(dosColumnas(primera ?? "", importe, n));
-    for (const l of resto) t.linea(`  ${l}`);
-    for (const o of item.opciones ?? []) for (const l of envolver(o, n - 4)) t.linea(`   + ${l}`);
-  }
+  for (const item of p.items) renglonImporte(t, item, n);
   regla(t, n);
-  const { subtotal, descuento, total, iva } = p.totales;
+  const { subtotal, descuento, total } = p.totales;
   if (descuento > 0) {
     t.linea(dosColumnas("Subtotal", dinero(subtotal), n));
     t.linea(dosColumnas("Descuento", `-${dinero(descuento)}`, n));
   }
   t.negrita(true).tamano(1, 2).linea(dosColumnas("TOTAL", dinero(total), n)).tamano(1, 1).negrita(false);
-  if (iva > 0) t.linea(dosColumnas("IVA incluido en el total", dinero(iva), n));
   regla(t, n);
   for (const pago of p.pagos ?? []) {
-    if (Number(pago.monto) > 0) t.linea(dosColumnas(METODO[pago.metodo] ?? pago.metodo, dinero(pago.monto), n));
+    // Un pago sin monto (la tarjeta solo pago la propina) no lleva linea propia; su referencia sale junto a la propina, no bajo otro metodo.
+    if (!(Number(pago.monto) > 0)) continue;
+    t.linea(dosColumnas(METODO[pago.metodo] ?? pago.metodo, dinero(pago.monto), n));
     if (pago.recibido != null) t.linea(dosColumnas("  Recibido", dinero(pago.recibido), n));
     if (pago.referencia) t.linea(`  Ref: ${pago.referencia}`);
   }
   if (Number(p.propina) > 0) {
     const medios = [...new Set((p.pagos ?? []).filter((x) => Number(x.propina) > 0).map((x) => METODO[x.metodo] ?? x.metodo))].join(", ");
     t.linea(dosColumnas(`Propina (${medios})`, dinero(p.propina), n));
+    for (const pago of p.pagos ?? []) if (!(Number(pago.monto) > 0) && pago.referencia) t.linea(`  Ref: ${pago.referencia}`);
   }
   if (Number(p.cambio) > 0) t.negrita(true).linea(dosColumnas("CAMBIO", dinero(p.cambio), n)).negrita(false);
   t.linea("");
@@ -170,7 +192,8 @@ export function renderCorte(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
   const cerrado = p.contado !== null && p.contado !== undefined;
-  t.alinear("centro").negrita(true).tamano(2, 2).linea(p.negocio ?? "").tamano(1, 1).linea(cerrado ? "CORTE DE CAJA" : "CORTE PARCIAL (caja abierta)").negrita(false);
+  encabezadoNegocio(t, p, n);
+  t.negrita(true).linea(cerrado ? "CORTE DE CAJA" : "CORTE PARCIAL (caja abierta)").negrita(false);
   t.alinear("izq");
   regla(t, n);
   t.linea(dosColumnas(`Turno ${p.turno}`, `Dia ${String(p.fecha_negocio ?? "").slice(0, 10)}`, n));
@@ -219,7 +242,8 @@ export function renderPrueba(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
   t.alinear("centro").negrita(true).tamano(2, 2).linea("PRUEBA").tamano(1, 1).negrita(false);
-  t.linea(p.negocio ?? "").linea(`Impresora: ${p.impresora ?? ""}`).linea(fechaHora(p.fecha, zona));
+  encabezadoNegocio(t, p, n);
+  t.linea(`Impresora: ${p.impresora ?? ""}`).linea(fechaHora(p.fecha, zona));
   regla(t, n);
   t.linea("Acentos: á é í ó ú ñ Ñ ü ¿ ¡").linea("Moneda: $ 1,234.50 €");
   regla(t, n, "=");
