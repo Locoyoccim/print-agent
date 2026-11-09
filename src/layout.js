@@ -166,7 +166,16 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   return t.cortar().bytes();
 }
 
-const METODO = { EFECTIVO: "Efectivo", TARJETA: "Tarjeta", TRANSFERENCIA: "Transferencia" };
+// El servidor manda `etiqueta` en cada pago y en cada metodo del corte (desde que se separaron credito y debito); el mapa es el
+// respaldo para trabajos de un servidor anterior. "TARJETA" es el valor de antes de la separacion.
+const METODO = {
+  EFECTIVO: "Efectivo",
+  TARJETA_CREDITO: "Tarjeta de crédito",
+  TARJETA_DEBITO: "Tarjeta de débito",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA: "Tarjeta",
+};
+const nombreMetodo = (x) => x.etiqueta ?? METODO[x.metodo] ?? x.metodo;
 
 // Ticket de venta. El cajon se abre solo en la impresion original con efectivo; una copia lo evita.
 export function renderTicket(p, { ancho = 80, zona, pagina, esCopia = false } = {}) {
@@ -193,12 +202,12 @@ export function renderTicket(p, { ancho = 80, zona, pagina, esCopia = false } = 
   for (const pago of p.pagos ?? []) {
     // Un pago sin monto (la tarjeta solo pago la propina) no lleva linea propia; su referencia sale junto a la propina, no bajo otro metodo.
     if (!(Number(pago.monto) > 0)) continue;
-    t.linea(dosColumnas(METODO[pago.metodo] ?? pago.metodo, dinero(pago.monto), n));
+    t.linea(dosColumnas(nombreMetodo(pago), dinero(pago.monto), n));
     if (pago.recibido != null) t.linea(dosColumnas("  Recibido", dinero(pago.recibido), n));
     if (pago.referencia) t.linea(`  Ref: ${pago.referencia}`);
   }
   if (Number(p.propina) > 0) {
-    const medios = [...new Set((p.pagos ?? []).filter((x) => Number(x.propina) > 0).map((x) => METODO[x.metodo] ?? x.metodo))].join(", ");
+    const medios = [...new Set((p.pagos ?? []).filter((x) => Number(x.propina) > 0).map(nombreMetodo))].join(", ");
     t.linea(dosColumnas(`Propina (${medios})`, dinero(p.propina), n));
     for (const pago of p.pagos ?? []) if (!(Number(pago.monto) > 0) && pago.referencia) t.linea(`  Ref: ${pago.referencia}`);
   }
@@ -228,13 +237,13 @@ export function renderCorte(p, { ancho = 80, zona, pagina } = {}) {
   regla(t, n);
   t.negrita(true).linea("VENTAS (sin propina)").negrita(false);
   for (const m of p.por_metodo ?? []) {
-    const etiqueta = METODO[m.metodo] ?? m.metodo;
+    const etiqueta = nombreMetodo(m);
     t.linea(dosColumnas(`${etiqueta}${m.cuentas ? ` (${m.cuentas})` : ""}`, dinero(m.monto), n));
   }
   t.negrita(true).linea(dosColumnas("TOTAL VENTAS", dinero(p.ventas), n)).negrita(false);
   regla(t, n);
   t.negrita(true).linea("PROPINAS").negrita(false);
-  for (const m of (p.por_metodo ?? []).filter((x) => Number(x.propina) > 0)) t.linea(dosColumnas(METODO[m.metodo] ?? m.metodo, dinero(m.propina), n));
+  for (const m of (p.por_metodo ?? []).filter((x) => Number(x.propina) > 0)) t.linea(dosColumnas(nombreMetodo(m), dinero(m.propina), n));
   t.linea(dosColumnas("Total propinas", dinero(p.propinas), n));
   if (Number(p.propinas_entregadas) > 0) t.linea(dosColumnas("Entregadas en efectivo", dinero(p.propinas_entregadas), n));
   regla(t, n);

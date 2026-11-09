@@ -192,6 +192,23 @@ test("layout: el ticket muestra total, pagos por metodo, propina y cambio", () =
   assert.doesNotMatch(t, /COPIA/);
 });
 
+test("layout: tarjeta de credito y de debito; usa la etiqueta del servidor y, sin ella, su propia lista", () => {
+  const conPagos = (pagos, por_metodo) => ({ ...ticket, payload: { ...ticket.payload, pagos, abrir_cajon: false, cambio: 0, propina: 0, por_metodo } });
+  // CP858: los acentos van en un byte que latin1 no lee como «é»; basta con ver el resto de la palabra.
+  const t = texto(render(conPagos([
+    { metodo: "TARJETA_CREDITO", etiqueta: "Tarjeta de crédito", monto: 130, propina: 0, referencia: null },
+    { metodo: "TARJETA_DEBITO", monto: 100, propina: 0, referencia: null },
+  ])));
+  assert.match(t, /Tarjeta de cr.dito\s+130\.00/);
+  assert.match(t, /Tarjeta de d.bito\s+100\.00/, "un servidor anterior no manda etiqueta: sale de la lista del agente");
+  assert.doesNotMatch(t, /TARJETA_/);
+  const textoCorte = texto(render({
+    ...corte,
+    payload: { ...corte.payload, por_metodo: [{ metodo: "TARJETA", etiqueta: "Tarjeta (sin especificar)", cuentas: 1, monto: 80, propina: 0 }] },
+  }));
+  assert.match(textoCorte, /Tarjeta \(sin especificar\) \(1\)\s+80\.00/);
+});
+
 test("layout: el ticket original con efectivo abre el cajon; la copia no", () => {
   assert.ok(render(ticket).includes(PULSO), "original con efectivo");
   const copia = render({ ...ticket, reimpresiones: 1 });
