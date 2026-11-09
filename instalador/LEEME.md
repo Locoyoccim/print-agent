@@ -31,7 +31,7 @@ node scripts/construir.mjs --servidor https://TU-SISTEMA.up.railway.app --salida
 .\scripts\firmar.ps1 -Archivo .\dist\agente.exe -Huella <huella>
 # 3) WinSW: copiar WinSW-x64.exe como instalador\gh-agente-servicio.exe (el .xml ya está junto)
 # 4) instalador
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DVersion=1.8.0 instalador\agente.iss
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DVersion=1.9.0 instalador\agente.iss
 .\scripts\firmar.ps1 -Archivo .\dist\NexoMesa-Agente-Setup.exe -Huella <huella>
 ```
 
@@ -42,7 +42,7 @@ sistema es el mismo; cada código ya trae su empresa). Para otro entorno (prueba
 ## Publicar una versión (actualización automática)
 
 1. Sube `agente.exe` **firmado** a una URL **https** estable (GitHub Releases, almacenamiento propio…) y el instalador a otra.
-2. En el servidor (variables de entorno): `AGENTE_ULTIMA_VERSION=1.8.0`, `AGENTE_URL_DESCARGA=<url del agente.exe>`,
+2. En el servidor (variables de entorno): `AGENTE_ULTIMA_VERSION=1.9.0`, `AGENTE_URL_DESCARGA=<url del agente.exe>`,
    `AGENTE_SHA256=<sha256 del agente.exe firmado>`, opcional `AGENTE_VERSION_MINIMA` y `AGENTE_INSTALADOR_URL=<url del instalador>`.
 3. Cada agente consulta `GET /api/agente/version` a los 2 min de arrancar y cada 6 h. Si hay versión nueva: descarga, **verifica el
    hash** (si no coincide la descarta), renombra su propio `.exe` a `.anterior`, pone el nuevo y sale con código 3; el servicio lo

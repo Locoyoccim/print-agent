@@ -61,6 +61,11 @@ export class Ticket {
     return this.#raw(GS, 0x21, ((ancho - 1) << 4) | (alto - 1));
   }
 
+  // Interlineado en puntos (ESC 3 n). ESC @ al iniciar cada ticket lo regresa al de fabrica (1/6 de pulgada, ~4.2 mm).
+  interlineado(puntos) {
+    return this.#raw(ESC, 0x33, puntos);
+  }
+
   texto(t) {
     this.#partes.push(codificar(t));
     return this;

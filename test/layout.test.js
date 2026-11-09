@@ -351,13 +351,14 @@ test("layout: la referencia de una tarjeta que solo pago la propina sale junto a
   assert.doesNotMatch(t, /Efectivo[^\n]*\n[^\n]*Ref: 4821/, "la referencia no queda bajo el efectivo");
 });
 
-test("layout: la comanda pone la mesa en grande y parte los nombres al ancho real del papel", () => {
+test("layout: la comanda pone la mesa y los platillos en grande; el nombre se parte a media fila", () => {
   const b = render(comanda);
   const i = b.indexOf(Buffer.from("Mesa 4"));
   assert.ok(i > 0 && b.subarray(Math.max(0, i - 12), i).includes(GRANDE), "la mesa va en doble ancho y alto");
-  const largo = texto(b);
-  // El renglon de 49 letras cabe en dos lineas (antes se partia en cuatro por mitad de ancho).
-  assert.match(largo, /1  Matcha Latte con leche de almendra extra\n[^\n]*caliente/);
+  const j = b.indexOf(Buffer.from("1  Matcha"));
+  assert.ok(j > 0 && b.subarray(Math.max(0, j - 12), j).includes(GRANDE), "el platillo va en doble ancho y alto");
+  // En doble ancho caben 24 columnas en 80 mm: cantidad + nombre se parten a esa medida, con sangria bajo la cantidad.
+  assert.match(texto(b), /1  Matcha Latte con\n {3}leche de almendra\n {3}extra caliente\n/);
   const llevar = texto(render({ ...comanda, payload: { ...comanda.payload, mesa: null, llevar: "Luis" } }));
   assert.match(llevar, /Llevar: Luis/);
 });
@@ -366,4 +367,39 @@ test("layout: la hoja de prueba lleva el encabezado completo del negocio", () =>
   const t = texto(render({ tipo: "PRUEBA", payload: { tipo: "PRUEBA", ...DATOS, impresora: "Barra", fecha: "2026-10-03T20:35:00.000Z" }, impresora: {} }));
   assert.match(t, /Tel\. 33 1234 5678/);
   assert.match(t, /Impresora: Barra/);
+});
+
+// ---- comanda con interlineado compacto y detalle en grande; precuenta en doble alto ----
+const ALTO = Buffer.from([0x1d, 0x21, 0x01]); // GS ! 0x01 = doble alto, ancho normal
+const antes = (b, txt, cmd) => {
+  const i = b.indexOf(Buffer.from(txt, "latin1"));
+  return i > 0 && b.subarray(Math.max(0, i - 12), i).includes(cmd);
+};
+
+test("layout: la comanda fija el interlineado en 26 puntos justo despues de iniciar", () => {
+  const b = render(comanda);
+  assert.deepEqual([...b.subarray(5, 8)], [0x1b, 0x33, 26], "ESC 3 26 tras ESC @ y la pagina de codigos");
+  for (const def of [precuenta, ticket]) assert.equal(render(def).includes(Buffer.from([0x1b, 0x33])), false, `${def.tipo}: interlineado de fabrica`);
+});
+
+test("layout: opciones, comensal y notas de la comanda van en doble alto y negrita", () => {
+  const items = [{ cantidad: 1, nombre: "Baguette", notas: "sin cebolla", opciones: ["Medio"], comensal: 2 }];
+  const b = render({ ...comanda, payload: { ...comanda.payload, items } });
+  assert.ok(antes(b, "  + Medio", ALTO), "opcion en doble alto");
+  const t = texto(b);
+  assert.match(t, /\+ Medio\n {2}Comensal 2\n {2}>> sin cebolla\n/, "comensal y notas siguen en doble alto");
+  // Al cerrar el platillo regresa a tamano normal y sin negrita, para que la regla final salga como siempre.
+  assert.match(t, /\x1d!\x00\x1bE\x00-{48}\n\x1bd/);
+});
+
+test("layout: la precuenta va en doble alto de PRECUENTA al total; el encabezado y la leyenda no", () => {
+  const b = render(conNegocio(precuenta, DATOS));
+  assert.ok(antes(b, "PRECUENTA", ALTO), "titulo en doble alto");
+  const t = texto(b);
+  const cuerpo = t.slice(t.indexOf("PRECUENTA"), t.indexOf("Precuenta: no es"));
+  assert.equal(cuerpo.slice(0, cuerpo.indexOf("TOTAL")).includes("\x1d!\x00"), false, "nada regresa a tamano normal antes del total");
+  assert.match(cuerpo, /2 Latte\s+110\.00\n\s+2 x 55\.00/, "las columnas se conservan (doble alto no ensancha)");
+  assert.match(cuerpo, /TOTAL\s+230\.00\n\x1d!\x00/, "tras el total vuelve a tamano normal");
+  assert.equal(antes(b, "Tel. 33", ALTO), false, "el telefono sigue en tamano normal");
+  assert.ok(t.split("\n").every((l) => l.replace(/[\x00-\x1f][^\x00-\x1f\n]{0,2}/g, "").length <= 48 + 3));
 });

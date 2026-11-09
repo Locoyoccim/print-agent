@@ -1,5 +1,5 @@
 ; Instalador del agente de impresion de NexoMesa (Inno Setup 6: https://jrsoftware.org/isinfo.php).
-; Compilar en Windows con:  ISCC.exe /DVersion=1.8.0 agente.iss   (ver LEEME.md: antes hay que construir y firmar agente.exe)
+; Compilar en Windows con:  ISCC.exe /DVersion=1.9.0 agente.iss   (ver LEEME.md: antes hay que construir y firmar agente.exe)
 ;
 ; Instalacion normal:   doble clic, escribir el codigo de Impresoras -> Agentes y listo.
 ; Desatendida:          NexoMesa-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345

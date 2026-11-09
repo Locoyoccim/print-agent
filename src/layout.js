@@ -81,9 +81,14 @@ function cabeceraCuenta(t, p, n, zona) {
   t.linea(fechaHora(p.fecha, zona));
 }
 
+// Interlineado de la comanda: 26 puntos (~3.3 mm) contra ~4.2 mm de fabrica. Es lo mas junto que permite la fuente A (24 puntos de
+// alto) sin que los renglones se toquen; los renglones de doble alto ocupan su propia altura.
+export const INTERLINEADO_COMANDA = 26;
+
 export function renderComanda(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
+  t.interlineado(INTERLINEADO_COMANDA);
   t.alinear("centro").negrita(true).tamano(2, 2).linea(`COMANDA ${p.comanda}`).tamano(1, 1).linea(String(p.area ?? "").toUpperCase()).negrita(false);
   // Del 2.o tiempo en adelante se anuncia en grande: la cocina sabe que es lo que sigue de una mesa que ya empezo.
   if (p.tiempo > 1) t.negrita(true).tamano(2, 2).linea(`${p.tiempo}.o TIEMPO`).tamano(1, 1).negrita(false);
@@ -100,18 +105,18 @@ export function renderComanda(p, { ancho = 80, zona, pagina } = {}) {
   t.linea(fechaHora(p.fecha, zona));
   regla(t, n);
   for (const item of p.items) {
-    // Cantidad y nombre en doble alto para leerlos desde lejos; opciones y notas en negrita. El doble alto no ensancha las letras:
-    // el nombre se parte al ancho real del papel (antes se partia a la mitad, desperdiciando papel).
+    // Cantidad y nombre en doble ancho y alto para leerlos desde lejos: caben n/2 columnas, asi que el nombre se parte a esa medida.
     const cab = `${item.cantidad}  `;
-    const lineas = envolver(item.nombre, n - cab.length);
-    t.negrita(true).tamano(1, 2);
+    const lineas = envolver(item.nombre, Math.floor(n / 2) - cab.length);
+    t.negrita(true).tamano(2, 2);
     lineas.forEach((l, i) => t.linea(i === 0 ? cab + l : " ".repeat(cab.length) + l));
-    t.tamano(1, 1);
-    // Cada opcion elegida en su linea ("+ Medio"): es lo que la cocina mas necesita leer sin equivocarse.
+    // Opciones, comensal y notas en doble alto (ancho normal, se parten al ancho del papel). Cada opcion en su linea ("+ Medio"):
+    // es lo que la cocina mas necesita leer sin equivocarse.
+    t.tamano(1, 2);
     for (const o of item.opciones ?? []) for (const l of envolver(o, n - 5)) t.linea(`  + ${l}`);
     if (item.comensal) t.linea(`  Comensal ${item.comensal}`);
     if (item.notas) for (const l of envolver(item.notas, n - 5)) t.linea(`  >> ${l}`);
-    t.negrita(false);
+    t.tamano(1, 1).negrita(false);
   }
   regla(t, n);
   return t.cortar().bytes();
@@ -121,7 +126,9 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
   encabezadoNegocio(t, p, n);
-  t.negrita(true).linea("PRECUENTA").negrita(false);
+  // Todo el cuerpo (de "PRECUENTA" al total) va en doble alto para leerlo en la mesa; el doble alto no ensancha las letras, asi que
+  // se conservan las n columnas. Direccion, telefono y la leyenda final quedan en tamano normal.
+  t.tamano(1, 2).negrita(true).linea("PRECUENTA").negrita(false);
   t.alinear("izq");
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
@@ -134,7 +141,7 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   const { subtotal, descuento, total } = p.totales;
   t.linea(dosColumnas("Subtotal", dinero(subtotal), n));
   if (descuento > 0) t.linea(dosColumnas("Descuento", `-${dinero(descuento)}`, n));
-  t.negrita(true).tamano(1, 2).linea(dosColumnas("TOTAL", dinero(total), Math.floor(n))).tamano(1, 1).negrita(false);
+  t.negrita(true).linea(dosColumnas("TOTAL", dinero(total), n)).tamano(1, 1).negrita(false);
   t.linea("");
   t.alinear("centro");
   for (const l of envolver("Precuenta: no es un comprobante de pago.", n)) t.linea(l);
