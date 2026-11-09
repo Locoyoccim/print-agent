@@ -403,3 +403,34 @@ test("layout: la precuenta va en doble alto de PRECUENTA al total; el encabezado
   assert.equal(antes(b, "Tel. 33", ALTO), false, "el telefono sigue en tamano normal");
   assert.ok(t.split("\n").every((l) => l.replace(/[\x00-\x1f][^\x00-\x1f\n]{0,2}/g, "").length <= 48 + 3));
 });
+
+// ---- textos largos: nada se recorta y las opciones partidas no parecen varias ----
+test("layout: dosColumnasCompleto no recorta; si no cabe, la derecha baja a su propia linea", async () => {
+  const { dosColumnasCompleto } = await import("../src/layout.js");
+  assert.deepEqual(dosColumnasCompleto("Mesa 4", "Folio 12", 20), [`Mesa 4${" ".repeat(6)}Folio 12`]);
+  assert.deepEqual(dosColumnasCompleto("Terraza exterior mesa 12", "Folio 99", 20), ["Terraza exterior", "mesa 12", `${" ".repeat(12)}Folio 99`]);
+  assert.deepEqual(dosColumnasCompleto("Mesero: Ana", "", 20), [`Mesero: Ana${" ".repeat(9)}`], "sin derecha queda como dosColumnas");
+});
+
+test("layout: una mesa o un mesero largos salen completos en precuenta y ticket (58 mm)", () => {
+  for (const def of [precuenta, ticket]) {
+    const largo = { ...def, impresora: { ancho: 58 }, payload: { ...def.payload, mesa: "Terraza exterior mesa 12 junto a la fuente", mesero: "María Fernanda de los Ángeles" } };
+    const t = texto(render(largo));
+    assert.match(t, /Terraza exterior mesa 12 junto a\nla fuente\n {20,25}Folio \d+\n/, `${def.tipo}: mesa completa y folio abajo`);
+    assert.equal(t.match(/\n( +Folio \d+)\n/)[1].length, 32, `${def.tipo}: el folio queda alineado a la derecha`);
+    assert.match(t, /Mesero: Mar\xa1a Fernanda de los\n\xb5ngeles\n {25}Pers: 2\n/, `${def.tipo}: mesero completo`);
+  }
+});
+
+test("layout: una opcion o nota larga se parte con sangria, sin repetir el + ni el >>, y no pasa del papel", () => {
+  const opcion = "Sin cebolla, sin cilantro y con la salsa verde aparte";
+  const pre = texto(render({ ...precuenta, impresora: { ancho: 58 }, payload: { ...precuenta.payload, items: [{ ...precuenta.payload.items[0], opciones: [opcion] }] } }));
+  assert.match(pre, / {3}\+ Sin cebolla, sin cilantro y\n {5}con la salsa verde aparte\n/);
+  const com = texto(render({ ...comanda, payload: { ...comanda.payload, items: [{ cantidad: 1, nombre: "Taco", opciones: [opcion], notas: "Bien dorado y con tortillas de maiz hechas a mano" }] } }));
+  assert.match(com, / {2}\+ Sin cebolla, sin cilantro y con la salsa\n {4}verde aparte\n/);
+  assert.match(com, / {2}>> Bien dorado y con tortillas de maiz hechas\n {5}a mano\n/);
+  assert.equal((pre + com).split("+").length - 1, 2, "un solo + por opcion");
+  // Una palabra mas ancha que el papel se corta sin pasar del ancho.
+  const enorme = texto(render({ ...precuenta, payload: { ...precuenta.payload, items: [{ ...precuenta.payload.items[0], opciones: ["x".repeat(60)] }] } }));
+  for (const l of enorme.split("\n").filter((x) => x.includes("xxx"))) assert.ok(l.replace(/[\x00-\x1f]../g, "").length <= 48, l);
+});
