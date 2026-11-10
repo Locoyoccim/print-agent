@@ -103,6 +103,64 @@ jobs:
           [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS.txt", ($lineas -join "`n") + "`n")
           Get-Content dist\SHA256SUMS.txt
 
+      # Revisión visual: abre el asistente en modo claro y oscuro y captura la bienvenida y la página del código (no instala nada).
+      # No corre al publicar con un tag ni detiene la construcción si falla.
+      - name: Capturas del asistente
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          Add-Type -TypeDefinition @"
+          using System; using System.Runtime.InteropServices;
+          public static class Ventana {
+            [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+            [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+            [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+          }
+          "@
+          [Ventana]::SetProcessDPIAware() | Out-Null
+          New-Item -ItemType Directory -Force capturas | Out-Null
+          function Asistente { Get-Process | Where-Object { $_.MainWindowTitle -like "*NexoMesa*" } | Select-Object -First 1 }
+          function Captura($nombre) {
+            $p = Asistente
+            if (-not $p) { Write-Host "No apareció la ventana del asistente ($nombre)"; return }
+            [Ventana]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+            Start-Sleep -Milliseconds 600
+            $r = New-Object Ventana+RECT
+            [Ventana]::GetWindowRect($p.MainWindowHandle, [ref]$r) | Out-Null
+            $bmp = New-Object System.Drawing.Bitmap ($r.Right - $r.Left), ($r.Bottom - $r.Top)
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)
+            $bmp.Save((Join-Path $PWD "capturas\$nombre.png"))
+            $g.Dispose(); $bmp.Dispose()
+            Write-Host "Captura $nombre ($($r.Right - $r.Left)x$($r.Bottom - $r.Top)): $($p.MainWindowTitle)"
+          }
+          $tema = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+          New-Item -Path $tema -Force | Out-Null
+          foreach ($modo in @(@{ nombre = "claro"; valor = 1 }, @{ nombre = "oscuro"; valor = 0 })) {
+            Set-ItemProperty -Path $tema -Name AppsUseLightTheme -Value $modo.valor -Type DWord
+            Start-Process dist\NexoMesa-Agente-Setup.exe
+            for ($i = 0; $i -lt 20 -and -not (Asistente); $i++) { Start-Sleep -Milliseconds 500 }
+            Start-Sleep 2
+            Captura "1-bienvenida-$($modo.nombre)"
+            [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+            Start-Sleep 2
+            Captura "2-codigo-$($modo.nombre)"
+            Get-Process | Where-Object { $_.ProcessName -like "NexoMesa-Agente-Setup*" } | Stop-Process -Force
+            Start-Sleep 2
+          }
+
+      - name: Subir capturas
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: capturas-instalador
+          path: capturas/
+          if-no-files-found: warn
+          retention-days: 14
+
       - uses: actions/upload-artifact@v7
         with:
           name: agente-${{ steps.version.outputs.version }}

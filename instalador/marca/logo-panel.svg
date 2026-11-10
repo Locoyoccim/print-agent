@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g><path fill="#F4EDE4" fill-rule="evenodd" d="M4 50V18C4 9 11 4 18 9L38 27V50C38 55 35 58 31 58C27 58 25 55 25 51V38L17 31V51C17 55.500 14 58 10.500 58H8C5.500 58 4 55 4 50ZM9 53.500C8.500 44.500 14 38.500 23 38.500C23.500 47.500 18 54 9 53.500Z"/>
+<path fill="#F97316" d="M44 25H58V52C58 56 55.500 58 51 58C46.500 58 44 56 44 52Z"/>
+<g fill="#FDBA74"><rect x="44" y="4" width="3" height="18" rx="1.500"/><rect x="49.500" y="4" width="3" height="18" rx="1.500"/><rect x="55" y="4" width="3" height="18" rx="1.500"/><path d="M44 19H58V27C58 27 51 30 44 27Z"/></g>
+</g></svg>
