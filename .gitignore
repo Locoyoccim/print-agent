@@ -7,3 +7,6 @@ config.json
 instalador/gh-agente-servicio.exe
 # estado.json: estado del agente para el ícono de Windows (se genera al correr)
 estado.json
+# Compilación del ícono (dotnet build)
+bandeja/**/bin/
+bandeja/**/obj/

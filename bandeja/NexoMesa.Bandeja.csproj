@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Ícono de estado del agente (NexoMesa-Bandeja.exe). .NET Framework 4.8: ya viene en Windows 10 y 11, no se instala nada más.
+       Lo compila el workflow publicar.yml en Windows:  dotnet build bandeja\NexoMesa.Bandeja.csproj -c Release -o dist\bandeja -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>NexoMesa-Bandeja</AssemblyName>
+    <RootNamespace>NexoMesa.Bandeja</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\instalador\marca\icono.ico</ApplicationIcon>
+    <Product>NexoMesa</Product>
+    <Company>NexoMesa</Company>
+    <AssemblyTitle>NexoMesa · Ícono del agente de impresión</AssemblyTitle>
+    <Description>Muestra junto al reloj el estado del agente de impresión de NexoMesa.</Description>
+    <Version>0.0.0</Version>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="pruebas\**" />
+    <None Remove="pruebas\**" />
+    <EmbeddedResource Remove="pruebas\**" />
+    <EmbeddedResource Include="..\instalador\marca\pequena-250.png" LogicalName="NexoMesa.Bandeja.marca.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Ensamblados de referencia de .NET Framework 4.8 (solo para compilar; no se distribuyen). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
