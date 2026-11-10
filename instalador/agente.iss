@@ -1,4 +1,4 @@
-; Instalador del agente de impresion de NexoMesa (Inno Setup 6: https://jrsoftware.org/isinfo.php).
+﻿; Instalador del agente de impresión de NexoMesa (Inno Setup 6: https://jrsoftware.org/isinfo.php).
 ; Lo compila GitHub Actions (.github/workflows/publicar.yml). A mano en Windows:  ISCC.exe /DVersion=X.Y.Z agente.iss   (ver LEEME.md)
 ;
 ; Instalacion normal:   doble clic, escribir el codigo de Configuracion POS -> Agente de impresion y listo.
@@ -8,12 +8,22 @@
 #ifndef Version
   #define Version "0.0.0"
 #endif
+; Las imágenes PNG, los colores de fondo y el modo oscuro automático piden Inno Setup 6.5.2 o posterior.
+#if Ver < EncodeVer(6, 5, 2)
+  #error Hace falta Inno Setup 6.5.2 o posterior (imágenes PNG y colores de marca)
+#endif
+#define Marca "marca\"
 
 [Setup]
 AppId={{6C1E0B7A-7D0B-4B8E-9D55-5C0B6F2A4E11}
-AppName=NexoMesa - Agente de impresion
+AppName=NexoMesa · Agente de impresión
 AppVersion={#Version}
 AppPublisher=NexoMesa
+AppPublisherURL=https://app.nexomesa.app
+AppSupportURL=https://github.com/Locoyoccim/print-agent
+VersionInfoCompany=NexoMesa
+VersionInfoProductName=NexoMesa
+VersionInfoDescription=Instalador del agente de impresión de NexoMesa
 DefaultDirName={commonpf}\NexoMesa\Agente
 DisableDirPage=yes
 DisableProgramGroupPage=yes
@@ -23,15 +33,34 @@ OutputDir=..\dist
 OutputBaseFilename=NexoMesa-Agente-Setup
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
-UninstallDisplayName=NexoMesa - Agente de impresion
+UninstallDisplayName=NexoMesa · Agente de impresión
+UninstallDisplayIcon={app}\icono.ico
+; Marca (GastronyHub/PRODUCT.md): fondo Arena en modo claro y verde muy oscuro en modo oscuro (sigue el tema de Windows); panel
+; lateral en Verde Nexo con el logo. Las imágenes van a 100/150/200/250 % y Inno elige la que mejor queda con la escala de la pantalla.
+; Se regeneran con instalador/marca/generar.mjs.
+WizardStyle=modern dynamic windows11
+WizardBackColor=#F7F2EC
+WizardBackColorDynamicDark=#102321
+WizardImageFile={#Marca}lateral-100.png,{#Marca}lateral-150.png,{#Marca}lateral-200.png,{#Marca}lateral-250.png
+WizardSmallImageFile={#Marca}pequena-100.png,{#Marca}pequena-150.png,{#Marca}pequena-200.png,{#Marca}pequena-250.png
+SetupIconFile={#Marca}icono.ico
 ; Descomentar y ajustar para firmar el instalador (certificado de firma de codigo; ver LEEME.md):
 ; SignTool=firma $f
 
 [Languages]
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 
+[Messages]
+; Textos de marca (español). Los nombres de pantallas del sistema van tal como aparecen en NexoMesa.
+es.BeveledLabel=NexoMesa · Tu negocio. Todo conectado.
+es.WelcomeLabel1=Instala el agente de impresión de NexoMesa
+es.WelcomeLabel2=Este programa conecta las impresoras de este local con NexoMesa: las comandas y los tickets salen solos, sin abrir puertos ni configurar el router.%n%nTen a la mano el código de instalación (formato XXXX-XXXX) que aparece en NexoMesa, en Configuracion POS > Agente de impresion.
+es.FinishedHeadingLabel=El agente quedó instalado
+es.FinishedLabelNoIcons=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.
+es.FinishedLabel=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.
+
 [Files]
+Source: "{#Marca}icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\agente.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "gh-agente-servicio.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "gh-agente-servicio.xml"; DestDir: "{app}"; Flags: ignoreversion
@@ -44,7 +73,7 @@ Name: "{commonappdata}\NexoMesa\agente\logs"
 
 [Run]
 ; config.json trae el token: solo SYSTEM y Administradores (SIDs, valen en cualquier idioma de Windows).
-Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\NexoMesa\agente"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"; Flags: runhidden; StatusMsg: "Protegiendo la configuracion..."
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\NexoMesa\agente"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"; Flags: runhidden; StatusMsg: "Protegiendo la configuración..."
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "install"; Flags: runhidden; StatusMsg: "Registrando el servicio..."
 ; Reinicio automatico si el agente se cae o se reinicia al actualizarse (cualquier salida distinta de 0 cuenta como falla).
 Filename: "{sys}\sc.exe"; Parameters: "failure NexoMesaAgente reset= 3600 actions= restart/5000/restart/30000/restart/60000"; Flags: runhidden
@@ -75,11 +104,11 @@ end;
 
 procedure InitializeWizard;
 begin
-  PaginaCodigo := CreateInputQueryPage(wpWelcome, 'Codigo de emparejamiento',
-    'Conecta este equipo con tu sistema',
-    'En el sistema entra a Operaciones > Configuracion POS > Agente de impresion, crea un agente (o usa Codigo de instalacion) y escribe aqui el codigo que aparece (formato XXXX-XXXX).' + #13#10 +
-    'Vale 15 minutos y se usa una sola vez.');
-  PaginaCodigo.Add('Codigo:', False);
+  PaginaCodigo := CreateInputQueryPage(wpWelcome, 'Código de instalación',
+    'Conecta este equipo con NexoMesa',
+    'En NexoMesa entra a Configuracion POS > Agente de impresion, crea un agente (o usa Codigo de instalacion en uno que ya existe) y escribe aquí el código que aparece.' + #13#10#13#10 +
+    'Tiene el formato XXXX-XXXX, vale 15 minutos y se usa una sola vez.');
+  PaginaCodigo.Add('Código:', False);
   if ParametroCodigo <> '' then PaginaCodigo.Values[0] := ParametroCodigo;
 end;
 
@@ -103,12 +132,12 @@ begin
   Comando := '/C ""' + ExpandConstant('{tmp}\agente.exe') + '" emparejar "' + Codigo + '" --config "' + Cfg + '" > "' + Salida + '" 2>&1"';
   if not Exec(ExpandConstant('{cmd}'), Comando, '', SW_HIDE, ewWaitUntilTerminated, Codigo2) then
   begin
-    Result := 'No se pudo ejecutar el emparejamiento.';
+    Result := 'No se pudo comprobar el código. Revisa la conexión a internet e inténtalo de nuevo.';
     Exit;
   end;
   if Codigo2 = 0 then Result := ''
   else if LoadStringsFromFile(Salida, Lineas) and (GetArrayLength(Lineas) > 0) then Result := Lineas[0]
-  else Result := 'No se pudo emparejar este equipo.';
+  else Result := 'No se pudo conectar este equipo con NexoMesa.';
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -121,7 +150,7 @@ begin
   if (Codigo = '') and ConfigExistente then Exit; // reinstalar / actualizar: conserva la configuracion
   if Codigo = '' then
   begin
-    MsgBox('Escribe el codigo de emparejamiento que genera el sistema.', mbError, MB_OK);
+    MsgBox('Escribe el código de instalación que aparece en NexoMesa (formato XXXX-XXXX).', mbError, MB_OK);
     Result := False;
     Exit;
   end;

@@ -37,6 +37,18 @@ compila el instalador con Inno Setup y calcula los hashes.
 En cada pull request que toca el código o el instalador el mismo workflow solo construye (sin publicar) y deja los archivos como
 artefacto del run, para comprobar que compila. Sin firma de código todavía: SmartScreen avisa al ejecutar el instalador.
 
+## Marca del instalador
+
+Las ventanas del asistente usan la marca de NexoMesa:
+- fondo Arena en modo claro y verde muy oscuro en modo oscuro (siguen el tema de Windows);
+- panel lateral en Verde Nexo con el logo, «NexoMesa» en Fraunces y el lema;
+- el ícono de la N en la esquina y en el instalador;
+- textos propios en la bienvenida, el código y el final.
+
+Las imágenes están en [`marca/`](marca/) (PNG a 100/150/200/250 % e `icono.ico`) y salen de `marca/plantilla.html` e `icono.svg`
+con `marca/generar.mjs` (ver el encabezado del script). En cada PR el workflow deja en el artefacto `capturas-instalador` capturas
+reales del asistente en Windows, en modo claro y oscuro.
+
 ## Construir a mano (en una PC con Windows, o el .exe desde otro sistema)
 
 Requisitos: Node 22+ (la **misma versión** que el `node.exe` que se empaqueta), [Inno Setup 6](https://jrsoftware.org/isinfo.php),

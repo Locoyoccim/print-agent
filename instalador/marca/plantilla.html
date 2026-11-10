@@ -1,0 +1,88 @@
+<!doctype html>
+<!--
+  Plantilla de las imágenes del instalador (marca NexoMesa). La usa instalador/marca/generar.mjs para exportar los PNG a cada tamaño;
+  también se puede abrir en un navegador: plantilla.html?pieza=lateral&w=164&h=314  (o pieza=pequena&w=58&h=58).
+  Paleta (GastronyHub/PRODUCT.md): Verde Nexo #0F4C4A, Naranja Mesa #F97316 (un solo destello), Arena #F4EDE4, Grafito #1F2937.
+-->
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@500;600&display=block" rel="stylesheet" />
+    <style>
+      :root {
+        --verde: #0f4c4a;
+        --verde-hondo: #0b3a38;
+        --naranja: #f97316;
+        --arena: #f4ede4;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: var(--w); height: var(--h); overflow: hidden; background: transparent; }
+      /* Todo se mide en "u" = 1/164 del ancho del panel lateral a 100 %: el mismo diseño escala a 150, 200 y 250 %. */
+      .lateral {
+        position: relative;
+        width: var(--w);
+        height: var(--h);
+        background: radial-gradient(120% 70% at 50% 18%, #14605d 0%, var(--verde) 55%, var(--verde-hondo) 100%);
+        color: var(--arena);
+        font-family: Inter, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .lateral .logo { width: calc(var(--u) * 64); height: calc(var(--u) * 64); margin-top: calc(var(--u) * 72); }
+      .lateral .nombre {
+        margin-top: calc(var(--u) * 16);
+        font-family: Fraunces, Georgia, serif;
+        font-weight: 600;
+        font-size: calc(var(--u) * 25);
+        letter-spacing: -0.01em;
+        line-height: 1;
+      }
+      .lateral .producto {
+        margin-top: calc(var(--u) * 7);
+        font-weight: 600;
+        font-size: calc(var(--u) * 10);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(244, 237, 228, 0.82);
+      }
+      .lateral .pie { position: absolute; left: 0; right: 0; bottom: calc(var(--u) * 26); display: flex; flex-direction: column; align-items: center; }
+      /* El naranja ya está en el logo (un solo destello por pantalla): la línea va en arena tenue. */
+      .lateral .destello { width: calc(var(--u) * 22); height: calc(var(--u) * 2); border-radius: 99px; background: rgba(244, 237, 228, 0.35); }
+      .lateral .lema {
+        margin-top: calc(var(--u) * 9);
+        font-weight: 500;
+        font-size: calc(var(--u) * 10.5);
+        line-height: 1.35;
+        color: rgba(244, 237, 228, 0.86);
+      }
+      .pequena { width: var(--w); height: var(--h); display: grid; place-items: center; }
+      .pequena img { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="raiz"></div>
+    <script>
+      const p = new URLSearchParams(location.search);
+      const w = Number(p.get("w") || 164);
+      const h = Number(p.get("h") || 314);
+      const pieza = p.get("pieza") || "lateral";
+      document.documentElement.style.setProperty("--w", `${w}px`);
+      document.documentElement.style.setProperty("--h", `${h}px`);
+      document.documentElement.style.setProperty("--u", `${w / 164}px`);
+      const raiz = document.getElementById("raiz");
+      if (pieza === "lateral") {
+        raiz.className = "lateral";
+        raiz.innerHTML = `
+          <img class="logo" src="logo-panel.svg" alt="" />
+          <div class="nombre">NexoMesa</div>
+          <div class="producto">Agente de impresión</div>
+          <div class="pie"><div class="destello"></div><div class="lema">Tu negocio.<br />Todo conectado.</div></div>`;
+      } else {
+        raiz.className = "pequena";
+        raiz.innerHTML = `<img src="icono.svg" alt="" />`;
+      }
+    </script>
+  </body>
+</html>
