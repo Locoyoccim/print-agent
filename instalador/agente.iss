@@ -1,7 +1,7 @@
 ; Instalador del agente de impresion de NexoMesa (Inno Setup 6: https://jrsoftware.org/isinfo.php).
-; Compilar en Windows con:  ISCC.exe /DVersion=1.10.0 agente.iss   (ver LEEME.md: antes hay que construir y firmar agente.exe)
+; Lo compila GitHub Actions (.github/workflows/publicar.yml). A mano en Windows:  ISCC.exe /DVersion=X.Y.Z agente.iss   (ver LEEME.md)
 ;
-; Instalacion normal:   doble clic, escribir el codigo de Impresoras -> Agentes y listo.
+; Instalacion normal:   doble clic, escribir el codigo de Configuracion POS -> Agente de impresion y listo.
 ; Desatendida:          NexoMesa-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345
 ; Actualizar a mano:    volver a ejecutar el instalador; con el campo del codigo vacio conserva la configuracion actual.
 
@@ -77,7 +77,7 @@ procedure InitializeWizard;
 begin
   PaginaCodigo := CreateInputQueryPage(wpWelcome, 'Codigo de emparejamiento',
     'Conecta este equipo con tu sistema',
-    'En el sistema entra a Punto de venta > Impresoras > Agentes, crea un agente y escribe aqui el codigo que aparece (formato XXXX-XXXX).' + #13#10 +
+    'En el sistema entra a Operaciones > Configuracion POS > Agente de impresion, crea un agente (o usa Codigo de instalacion) y escribe aqui el codigo que aparece (formato XXXX-XXXX).' + #13#10 +
     'Vale 15 minutos y se usa una sola vez.');
   PaginaCodigo.Add('Codigo:', False);
   if ParametroCodigo <> '' then PaginaCodigo.Values[0] := ParametroCodigo;

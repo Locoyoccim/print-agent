@@ -17,7 +17,27 @@
 Desatendido: `NexoMesa-Agente-Setup.exe /VERYSILENT /CODIGO=ABCD-2345`. Actualizar a mano: volver a ejecutarlo con el código vacío
 (conserva la configuración). Normalmente no hace falta: el agente **se actualiza solo** (ver abajo).
 
-## Construir (en una PC con Windows, o el .exe desde otro sistema)
+## Publicar una versión (automático, GitHub Actions)
+
+El workflow [`.github/workflows/publicar.yml`](../.github/workflows/publicar.yml) construye todo en una máquina Windows de GitHub:
+`npm test`, `agente.exe` (con `https://app.nexomesa.app` incluido), prueba `agente.exe --version`, baja WinSW verificando su sha256,
+compila el instalador con Inno Setup y calcula los hashes.
+
+1. Sube la versión en `package.json` y `src/api.js` (las dos deben coincidir; el CI de pruebas lo revisa) y fusiona el PR.
+2. Crea el tag sobre `main` y súbelo:
+   ```bash
+   git tag v1.10.1 && git push origin v1.10.1
+   ```
+3. El workflow crea el Release **como pre-release** con `agente.exe`, `NexoMesa-Agente-Setup.exe` y `SHA256SUMS.txt`. Un pre-release
+   no le llega a ningún agente: sirve para probar el instalador en una PC antes de soltarlo.
+4. Para desplegarlo: en GitHub edita el Release y marca **Set as the latest release**. Mientras el servidor no lea los Releases solo,
+   copia las variables que vienen en las notas del Release al servicio **api** de Railway (`AGENTE_ULTIMA_VERSION`,
+   `AGENTE_URL_DESCARGA`, `AGENTE_SHA256`, `AGENTE_INSTALADOR_URL`).
+
+En cada pull request que toca el código o el instalador el mismo workflow solo construye (sin publicar) y deja los archivos como
+artefacto del run, para comprobar que compila. Sin firma de código todavía: SmartScreen avisa al ejecutar el instalador.
+
+## Construir a mano (en una PC con Windows, o el .exe desde otro sistema)
 
 Requisitos: Node 22+ (la **misma versión** que el `node.exe` que se empaqueta), [Inno Setup 6](https://jrsoftware.org/isinfo.php),
 [WinSW](https://github.com/winsw/winsw/releases) (`WinSW-x64.exe`) y, para firmar, `signtool` (Windows SDK) y un certificado de firma de código.
@@ -26,7 +46,7 @@ Requisitos: Node 22+ (la **misma versión** que el `node.exe` que se empaqueta),
 cd print-agent
 npm install
 # 1) agente.exe: usa el node.exe de ESTA PC, o descarga node-v<misma-version>-win-x64.zip y pasa su ruta con --node
-node scripts/construir.mjs --servidor https://TU-SISTEMA.up.railway.app --salida dist
+node scripts/construir.mjs --servidor https://app.nexomesa.app --salida dist
 # 2) firmar agente.exe (ver scripts/firmar.ps1) y anotar el sha256 del archivo FIRMADO
 .\scripts\firmar.ps1 -Archivo .\dist\agente.exe -Huella <huella>
 # 3) WinSW: copiar WinSW-x64.exe como instalador\gh-agente-servicio.exe (el .xml ya está junto)
@@ -39,7 +59,7 @@ node scripts/construir.mjs --servidor https://TU-SISTEMA.up.railway.app --salida
 sistema es el mismo; cada código ya trae su empresa). Para otro entorno (pruebas) se construye con otra dirección o se usa
 `agente.exe emparejar CODIGO --servidor URL`.
 
-## Publicar una versión (actualización automática)
+## Cómo se actualizan los agentes (y publicar a mano)
 
 1. Sube `agente.exe` **firmado** a una URL **https** estable (GitHub Releases, almacenamiento propio…) y el instalador a otra.
 2. En el servidor (variables de entorno): `AGENTE_ULTIMA_VERSION=1.10.0`, `AGENTE_URL_DESCARGA=<url del agente.exe>`,
