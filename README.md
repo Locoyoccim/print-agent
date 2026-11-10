@@ -13,7 +13,7 @@ El agente siempre inicia la conexión hacia el sistema (HTTPS saliente): **no ha
 
 ## Instalación (instalador de un paso)
 
-1. En el sistema: **Operaciones → Configuracion POS → Agente de impresion → Nuevo agente**. Aparece un **código `XXXX-XXXX`** (vale 15 minutos y se usa una sola vez) y el enlace para bajar el instalador.
+1. En el sistema: **Operaciones → Configuracion POS → Agente de impresion → Nuevo agente**. Aparece un **código `XXXX-XXXX`** (vale 15 minutos y se usa una sola vez) y el enlace para bajar el instalador (también está en [Releases](https://github.com/Locoyoccim/print-agent/releases/latest/download/NexoMesa-Agente-Setup.exe)).
 2. En la PC de caja ejecuta `NexoMesa-Agente-Setup.exe`, escribe el código y termina. No necesitas instalar Node ni tocar archivos: el instalador deja el agente como **servicio de Windows** (arranca con la PC y se reinicia si falla).
 3. En el sistema, el agente debe aparecer como **conectado**. Da de alta cada impresora y usa **Imprimir página de prueba**.
 

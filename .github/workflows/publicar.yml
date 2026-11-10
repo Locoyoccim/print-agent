@@ -1,0 +1,158 @@
+name: Publicar agente
+
+# Construye agente.exe y el instalador en Windows y, con un tag vX.Y.Z, los publica como Release de GitHub.
+#
+# - Tag vX.Y.Z (debe coincidir con package.json): construye, prueba y crea el Release como PRE-RELEASE. Un pre-release no le llega a
+#   ningún agente; para desplegarlo se marca como «latest» en GitHub (o se ponen las variables AGENTE_* en Railway).
+# - Pull request que toca el código o el instalador: solo construye y deja los archivos como artefacto (para revisar que compila).
+# - A mano (Actions → Publicar agente → Run workflow): igual que un pull request.
+#
+# Sin firma de código por ahora: Windows SmartScreen avisa al ejecutar el instalador (las actualizaciones automáticas no pasan por ahí).
+on:
+  push:
+    tags: ["v*.*.*"]
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "instalador/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/publicar.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Queda dentro de agente.exe: quien instala solo escribe su código de emparejamiento.
+  SERVIDOR: https://app.nexomesa.app
+  # WinSW (servicio de Windows): versión fija y verificada por sha256 antes de meterla al instalador.
+  WINSW_URL: https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe
+  WINSW_SHA256: 05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da
+
+jobs:
+  construir:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Versión
+        id: version
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF -like "refs/tags/*" -and "v$v" -ne $env:GITHUB_REF_NAME) {
+            throw "El tag $($env:GITHUB_REF_NAME) no coincide con la versión de package.json ($v)."
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Agente $v"
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Construir agente.exe
+        shell: pwsh
+        run: node scripts/construir.mjs --servidor $env:SERVIDOR --salida dist
+
+      - name: Probar agente.exe
+        shell: pwsh
+        run: |
+          $real = (& .\dist\agente.exe --version).Trim()
+          if ($real -ne "${{ steps.version.outputs.version }}") { throw "agente.exe --version respondió '$real'" }
+          Write-Host "agente.exe --version = $real"
+
+      - name: WinSW (verificado)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri $env:WINSW_URL -OutFile instalador\gh-agente-servicio.exe -UseBasicParsing
+          $h = (Get-FileHash instalador\gh-agente-servicio.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne $env:WINSW_SHA256) { throw "El sha256 de WinSW no coincide ($h): no se usa." }
+
+      - name: Compilar el instalador (Inno Setup 6)
+        shell: pwsh
+        run: |
+          $rutas = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe")
+          $iscc = $rutas | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup --no-progress -y
+            $iscc = $rutas | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) { throw "No se encontró Inno Setup 6" }
+          & $iscc "/DVersion=${{ steps.version.outputs.version }}" "instalador\agente.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup falló ($LASTEXITCODE)" }
+
+      - name: Hashes
+        shell: pwsh
+        run: |
+          $lineas = foreach ($f in "agente.exe", "NexoMesa-Agente-Setup.exe") {
+            "$((Get-FileHash "dist\$f" -Algorithm SHA256).Hash.ToLower())  $f"
+          }
+          # Con LF (no CRLF): el job de publicar lo lee en Linux.
+          [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS.txt", ($lineas -join "`n") + "`n")
+          Get-Content dist\SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: agente-${{ steps.version.outputs.version }}
+          path: |
+            dist/agente.exe
+            dist/NexoMesa-Agente-Setup.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  publicar:
+    needs: construir
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: agente-${{ needs.construir.outputs.version }}
+          path: dist
+
+      - name: Crear el Release (pre-release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.construir.outputs.version }}
+        run: |
+          cd dist
+          sha_exe="$(awk '$2 == "agente.exe" {print $1}' SHA256SUMS.txt)"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          fence='```'
+          {
+            echo "Agente de impresión de NexoMesa ${VERSION}. Construido por GitHub Actions desde ${GITHUB_SHA::7}."
+            echo
+            echo "**Es un pre-release: todavía no le llega a ningún agente.** Para desplegarlo, edítalo y marca «Set as the latest release»."
+            echo
+            echo "| Archivo | sha256 |"
+            echo "|---|---|"
+            awk '{printf "| %s | `%s` |\n", $2, $1}' SHA256SUMS.txt
+            echo
+            echo "Mientras el servidor no lea los Releases solo, la actualización automática se activa con estas variables del servicio **api** en Railway:"
+            echo
+            echo "$fence"
+            echo "AGENTE_ULTIMA_VERSION=${VERSION}"
+            echo "AGENTE_URL_DESCARGA=${base}/agente.exe"
+            echo "AGENTE_SHA256=${sha_exe}"
+            echo "AGENTE_INSTALADOR_URL=https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/NexoMesa-Agente-Setup.exe"
+            echo "$fence"
+          } > notas.md
+          cat notas.md
+          gh release create "$GITHUB_REF_NAME" agente.exe NexoMesa-Agente-Setup.exe SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --title "Agente ${VERSION}" --notes-file notas.md --prerelease --verify-tag
