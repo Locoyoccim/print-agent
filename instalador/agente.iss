@@ -56,37 +56,52 @@ es.BeveledLabel=NexoMesa · Tu negocio. Todo conectado.
 es.WelcomeLabel1=Instala el agente de impresión de NexoMesa
 es.WelcomeLabel2=Este programa conecta las impresoras de este local con NexoMesa: las comandas y los tickets salen solos, sin abrir puertos ni configurar el router.%n%nTen a la mano el código de instalación (formato XXXX-XXXX) que aparece en NexoMesa, en Configuracion POS > Agente de impresion.
 es.FinishedHeadingLabel=El agente quedó instalado
-es.FinishedLabelNoIcons=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.
-es.FinishedLabel=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.
+es.FinishedLabelNoIcons=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.%n%nJunto al reloj de Windows aparece el ícono de NexoMesa: verde si todo está bien, amarillo o rojo si algo falla. Si no lo ves, búscalo en la flecha ^ y arrástralo a la barra.
+es.FinishedLabel=El agente ya está funcionando y arranca solo cada vez que se enciende este equipo.%n%nEn NexoMesa, en Configuracion POS > Agente de impresion, debe aparecer como Conectado. Desde ahí das de alta las impresoras e imprimes una página de prueba.%n%nJunto al reloj de Windows aparece el ícono de NexoMesa: verde si todo está bien, amarillo o rojo si algo falla. Si no lo ves, búscalo en la flecha ^ y arrástralo a la barra.
 
 [Files]
 Source: "{#Marca}icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\agente.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "gh-agente-servicio.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "gh-agente-servicio.xml"; DestDir: "{app}"; Flags: ignoreversion
+; Ícono de estado junto al reloj (bandeja/, C# .NET Framework 4.8): solo lee estado.json.
+Source: "..\dist\bandeja\NexoMesa-Bandeja.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; El emparejamiento se hace ANTES de instalar, con una copia temporal: si el codigo es incorrecto no se instala nada.
 Source: "..\dist\agente.exe"; Flags: dontcopy
 
 [Dirs]
 Name: "{commonappdata}\NexoMesa\agente"
 Name: "{commonappdata}\NexoMesa\agente\logs"
+Name: "{commonappdata}\NexoMesa\estado"
+
+[Registry]
+; El ícono arranca al iniciar sesión cualquier usuario del equipo.
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NexoMesaBandeja"; ValueData: """{app}\NexoMesa-Bandeja.exe"""; Flags: uninsdeletevalue
 
 [Run]
 ; config.json trae el token: solo SYSTEM y Administradores (SIDs, valen en cualquier idioma de Windows).
 Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\NexoMesa\agente"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F"; Flags: runhidden; StatusMsg: "Protegiendo la configuración..."
+; estado.json (para el ícono, sin token): lo escribe solo el servicio (SYSTEM) y lo leen los usuarios (S-1-5-32-545), sin poder cambiarlo.
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\NexoMesa\estado"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX"; Flags: runhidden
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "install"; Flags: runhidden; StatusMsg: "Registrando el servicio..."
 ; Reinicio automatico si el agente se cae o se reinicia al actualizarse (cualquier salida distinta de 0 cuenta como falla).
 Filename: "{sys}\sc.exe"; Parameters: "failure NexoMesaAgente reset= 3600 actions= restart/5000/restart/30000/restart/60000"; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "failureflag NexoMesaAgente 1"; Flags: runhidden
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "start"; Flags: runhidden; StatusMsg: "Iniciando el agente..."
+; Abre el ícono ya, con el usuario que instaló (sin permisos de administrador). Instalado a distancia como SYSTEM no hay escritorio:
+; aparece en el siguiente inicio de sesión.
+Filename: "{app}\NexoMesa-Bandeja.exe"; Flags: nowait runasoriginaluser; Check: HayUsuarioConEscritorio
 
 [UninstallRun]
+; Cierra el ícono en todas las sesiones para poder borrar su .exe.
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM NexoMesa-Bandeja.exe"; Flags: runhidden; RunOnceId: "CierraIcono"
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "stop"; Flags: runhidden; RunOnceId: "ParaServicio"
 Filename: "{app}\gh-agente-servicio.exe"; Parameters: "uninstall"; Flags: runhidden; RunOnceId: "QuitaServicio"
 
 [UninstallDelete]
 ; Al desinstalar se borra tambien la configuracion (trae el token del agente): para volver a usarlo se genera un codigo nuevo.
 Type: filesandordirs; Name: "{commonappdata}\NexoMesa\agente"
+Type: filesandordirs; Name: "{commonappdata}\NexoMesa\estado"
 
 [Code]
 var
@@ -95,6 +110,12 @@ var
 function ParametroCodigo: String;
 begin
   Result := ExpandConstant('{param:CODIGO|}');
+end;
+
+// Instalado a distancia como SYSTEM (sin sesión de usuario) no se abre el ícono: no habría dónde mostrarlo.
+function HayUsuarioConEscritorio: Boolean;
+begin
+  Result := Pos('systemprofile', Lowercase(GetEnv('USERPROFILE'))) = 0;
 end;
 
 function ConfigExistente: Boolean;
@@ -173,7 +194,9 @@ begin
     Result := Emparejar(ParametroCodigo);
     if Result <> '' then Exit;
   end;
-  // Reinstalacion: se detiene el servicio para poder reemplazar agente.exe.
+  // Reinstalacion: se detiene el servicio para poder reemplazar agente.exe y se cierra el ícono para reemplazar el suyo.
   if FileExists(ExpandConstant('{app}\gh-agente-servicio.exe')) then
     Exec(ExpandConstant('{app}\gh-agente-servicio.exe'), 'stop', '', SW_HIDE, ewWaitUntilTerminated, Codigo2);
+  if FileExists(ExpandConstant('{app}\NexoMesa-Bandeja.exe')) then
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM NexoMesa-Bandeja.exe', '', SW_HIDE, ewWaitUntilTerminated, Codigo2);
 end;

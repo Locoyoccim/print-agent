@@ -16,6 +16,7 @@ on:
       - "src/**"
       - "scripts/**"
       - "instalador/**"
+      - "bandeja/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/publicar.yml"
@@ -72,6 +73,16 @@ jobs:
           $real = (& .\dist\agente.exe --version).Trim()
           if ($real -ne "${{ steps.version.outputs.version }}") { throw "agente.exe --version respondió '$real'" }
           Write-Host "agente.exe --version = $real"
+
+      # Ícono de estado junto al reloj (C# .NET Framework 4.8): primero sus pruebas, luego el .exe que mete el instalador.
+      - name: Ícono de estado (NexoMesa-Bandeja.exe)
+        shell: pwsh
+        run: |
+          dotnet run --project bandeja\pruebas\Pruebas.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw "Fallaron las pruebas del ícono" }
+          dotnet build bandeja\NexoMesa.Bandeja.csproj -c Release -o dist\bandeja "-p:Version=${{ steps.version.outputs.version }}"
+          if ($LASTEXITCODE -ne 0) { throw "No compiló el ícono" }
+          Get-Item dist\bandeja\NexoMesa-Bandeja.exe | Select-Object Name, Length
 
       - name: WinSW (verificado)
         shell: pwsh
@@ -151,6 +162,26 @@ jobs:
             Get-Process | Where-Object { $_.ProcessName -like "NexoMesa-Agente-Setup*" } | Stop-Process -Force
             Start-Sleep 2
           }
+          # Ícono: los tres colores como PNG y la ventana de últimos mensajes con un estado.json de ejemplo.
+          Start-Process dist\bandeja\NexoMesa-Bandeja.exe -ArgumentList "--muestras", "$PWD\capturas\icono" -Wait
+          $ahora = (Get-Date).ToUniversalTime()
+          $f = { param($s) $ahora.AddSeconds(-$s).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'") }
+          $ejemplo = @{
+            formato = 1; version = "${{ steps.version.outputs.version }}"; pid = 1; iniciado = (& $f 600); actualizado = (& $f 1); detenido = $false; motivo = $null
+            servidor = @{ url = "https://app.nexomesa.app"; conectado = $true; ultimoContacto = (& $f 2); error = $null }
+            impresoras = @(@{ clave = "id:1"; nombre = "Cocina"; conexion = "RED"; ok = $false; ultimoOk = (& $f 300); ultimoError = @{ mensaje = "La impresora 192.168.1.50:9100 no respondio en 8 s"; hora = (& $f 30) } })
+            eventos = @(
+              @{ hora = (& $f 400); nivel = "info"; mensaje = "Agente de impresion ${{ steps.version.outputs.version }} conectado a https://app.nexomesa.app" },
+              @{ hora = (& $f 300); nivel = "info"; mensaje = "Impreso COMANDA #41 en Cocina" },
+              @{ hora = (& $f 30); nivel = "error"; mensaje = "Fallo el trabajo 42 (COMANDA) en Cocina: La impresora 192.168.1.50:9100 no respondio en 8 s" })
+          }
+          $env:AGENT_ESTADO = "$PWD\capturas\estado-ejemplo.json"
+          [IO.File]::WriteAllText($env:AGENT_ESTADO, ($ejemplo | ConvertTo-Json -Depth 5))
+          Start-Process dist\bandeja\NexoMesa-Bandeja.exe -ArgumentList "--mensajes"
+          for ($i = 0; $i -lt 20 -and -not (Asistente); $i++) { Start-Sleep -Milliseconds 500 }
+          Start-Sleep 1
+          Captura "3-icono-mensajes"
+          Get-Process | Where-Object { $_.ProcessName -like "NexoMesa-Bandeja*" } | Stop-Process -Force
 
       - name: Subir capturas
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}

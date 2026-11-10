@@ -49,6 +49,26 @@ Las imágenes están en [`marca/`](marca/) (PNG a 100/150/200/250 % e `icono.ico
 con `marca/generar.mjs` (ver el encabezado del script). En cada PR el workflow deja en el artefacto `capturas-instalador` capturas
 reales del asistente en Windows, en modo claro y oscuro.
 
+## Ícono junto al reloj
+
+El instalador también deja `NexoMesa-Bandeja.exe` (código en [`bandeja/`](../bandeja/), C# con .NET Framework 4.8, que ya viene en
+Windows 10 y 11). Arranca al iniciar sesión cualquier usuario (`HKLM\...\Run`, valor `NexoMesaBandeja`) y se abre al terminar de instalar.
+
+- **Color:** verde si está conectado y las impresoras responden; amarillo si una impresora falla, o mientras conecta, reconecta
+  (primer minuto) o se actualiza; rojo si el agente está detenido o no responde, si lleva más de un minuto sin internet o si NexoMesa
+  rechazó su token.
+- **Clic (izquierdo o derecho):** el estado, cada impresora con su último fallo, «Abrir NexoMesa» (pantalla de agentes), «Ver últimos
+  mensajes» y ocultar el ícono hasta el siguiente inicio de sesión.
+- **Avisos emergentes:** solo cuando aparece o cambia un problema, y cuando se resuelve.
+
+Solo **lee** `C:\ProgramData\NexoMesa\estado\estado.json`, que escribe el agente: no tiene el token, no habla con el servidor y el
+agente no abre puertos. La carpeta `estado` la escribe solo el servicio; los usuarios solo la leen. Las actualizaciones automáticas
+cambian únicamente `agente.exe`: el ícono se actualiza al volver a ejecutar el instalador. Instalado a distancia como SYSTEM, el ícono
+aparece en el siguiente inicio de sesión.
+
+En cada PR el workflow corre sus pruebas (`bandeja/pruebas`), lo compila y deja en el artefacto `capturas-instalador` los íconos de
+cada color y la ventana de mensajes.
+
 ## Construir a mano (en una PC con Windows, o el .exe desde otro sistema)
 
 Requisitos: Node 22+ (la **misma versión** que el `node.exe` que se empaqueta), [Inno Setup 6](https://jrsoftware.org/isinfo.php),
