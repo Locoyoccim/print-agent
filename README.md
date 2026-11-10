@@ -13,7 +13,7 @@ El agente siempre inicia la conexión hacia el sistema (HTTPS saliente): **no ha
 
 ## Instalación (instalador de un paso)
 
-1. En el sistema: **Punto de venta → Impresoras → Agentes → Nuevo agente**. Aparece un **código `XXXX-XXXX`** (vale 15 minutos y se usa una sola vez) y el enlace para bajar el instalador.
+1. En el sistema: **Operaciones → Configuracion POS → Agente de impresion → Nuevo agente**. Aparece un **código `XXXX-XXXX`** (vale 15 minutos y se usa una sola vez) y el enlace para bajar el instalador.
 2. En la PC de caja ejecuta `NexoMesa-Agente-Setup.exe`, escribe el código y termina. No necesitas instalar Node ni tocar archivos: el instalador deja el agente como **servicio de Windows** (arranca con la PC y se reinicia si falla).
 3. En el sistema, el agente debe aparecer como **conectado**. Da de alta cada impresora y usa **Imprimir página de prueba**.
 
@@ -21,12 +21,12 @@ El agente **se actualiza solo** (descarga la versión nueva, verifica su hash y 
 
 > El instalador de Windows aún no se ha compilado ni probado en una PC con Windows (ver el LEEME). El emparejamiento y la actualización sí tienen pruebas automáticas y una prueba real con el ejecutable en macOS.
 
-## Instalación manual (desarrollo o sin instalador)
+## Instalación manual (avanzado: desarrollo o sin instalador)
 
-Sirve para probar desde el código fuente. Requiere [Node.js 20 o superior](https://nodejs.org).
+Sirve para probar desde el código fuente; para un local, usa el instalador. Requiere [Node.js 20 o superior](https://nodejs.org).
 
-1. En el sistema: **Punto de venta → Impresoras → Agentes → Nuevo agente**. Copia el token (`gh_agt_...`); solo se muestra una vez (o, en vez de pegarlo, canjea el código: `node src/index.js emparejar CODIGO --servidor https://tu-sistema`).
-2. Copia esta carpeta a la PC de caja, por ejemplo `C:\NexoMesa\print-agent` (si el repo es privado, baja el ZIP desde GitHub: *Code → Download ZIP*, descomprímelo completo y renombra la carpeta a `print-agent`).
+1. En el sistema: **Operaciones → Configuracion POS → Agente de impresion → Nuevo agente**. Copia el token (`gh_agt_...`); solo se muestra una vez (o, en vez de pegarlo, canjea el código: `node src/index.js emparejar CODIGO --servidor https://tu-sistema`).
+2. Copia esta carpeta a la PC de caja, por ejemplo `C:\NexoMesa\print-agent` (o baja el ZIP de la rama **main** desde GitHub: *Code → Download ZIP*, descomprímelo completo y renombra la carpeta a `print-agent`).
 3. Copia `config.ejemplo.json` como `config.json` y llénalo:
 
 ```json
@@ -58,6 +58,14 @@ Start-ScheduledTask -TaskName "NexoMesaAgente"
 
 **Laptop o PC con batería:** las dos opciones de batería son necesarias; sin ellas la tarea se queda en `Queued` y nunca arranca. Cierra antes cualquier agente que tengas corriendo a mano (dos agentes con el mismo token pueden imprimir doble). Debe quedar en `Running` (`Get-ScheduledTask -TaskName NexoMesaAgente`) y el log en `agente.log`. Detener: `Stop-ScheduledTask -TaskName NexoMesaAgente`; quitar: `Unregister-ScheduledTask -TaskName NexoMesaAgente -Confirm:$false`. Para actualizar: detén la tarea, reemplaza los archivos y vuelve a iniciarla. (Alternativa con servicio: [NSSM](https://nssm.cc).)
 
+### Actualizar una instalación manual
+
+1. Detén el agente (`Stop-ScheduledTask -TaskName NexoMesaAgente`, o cierra su ventana).
+2. Copia los archivos nuevos encima de la carpeta **sin borrar `config.json`**: ese archivo no viene en el repo ni en el ZIP (lleva el token del agente). Si se pierde, hay que volver a emparejar con un código.
+3. Comprueba la versión (`node src\index.js --version`) y vuelve a iniciar el agente (`Start-ScheduledTask -TaskName NexoMesaAgente`).
+
+Con el instalador no hace falta nada de esto: el agente se actualiza solo.
+
 ## Cómo se dan de alta las impresoras
 
 | Tipo | Qué se captura |
@@ -72,11 +80,22 @@ Cada impresora atiende **un área** (Cocina, Barra...) o es la **impresora de ti
 ## Si algo falla
 
 - **El sistema dice "agente desconectado"**: la PC está apagada, sin internet, o el servicio no corre (`Get-ScheduledTask -TaskName NexoMesaAgente`). Las comandas **no se pierden**: quedan en cola y salen al reconectar.
-- **"El servidor rechazó el token"**: el token cambió o el agente se desactivó. Genera uno nuevo en Impresoras y actualiza `config.json`.
+- **"El servidor rechazó el token"**: el token cambió o el agente se desactivó. Genera un código en **Agente de impresion → Codigo de instalacion** y vuelve a emparejar (`node src\index.js emparejar CODIGO --servidor https://app.nexomesa.app --config RUTA\config.json`).
 - **Las comandas salen con símbolos raros en lugar de acentos**: cambia `paginaCodigos` (19 = CP858; prueba 2 = CP850 o 16 = WPC1252) y reinicia el servicio. La hoja de prueba incluye `á é í ó ú ñ` para verificarlo.
 - **Una impresora no recibe nada y otra sí**: con varias PCs, revisa que la impresora tenga elegida la **PC que la imprime** correcta y que esa PC esté conectada.
 - **"No se pudo conectar con IP:9100"**: la impresora está apagada, sin papel o con otra IP. Un trabajo con error se reintenta 5 veces (si una impresora falla, el resto de sus trabajos de esa vuelta fallan al instante, sin esperar otro timeout) y luego queda en la cola con el motivo; puedes **reimprimir** desde el sistema.
 - **"No se encontró la impresora ... en Windows"** (USB): el nombre no coincide exactamente con el de Windows.
+
+## Seguridad
+
+- El token del agente vive solo en `config.json` (instalado: `C:\ProgramData\NexoMesa\agente`, legible solo por Administradores y SYSTEM). Nunca se sube al repositorio (`.gitignore`) y el servidor guarda solo su hash.
+- El código de emparejamiento vale 15 minutos, se usa una sola vez y el servidor limita los intentos.
+- Una actualización solo se instala si su sha256 coincide con el que publica el servidor, y se descarga por https.
+- ¿Encontraste una vulnerabilidad? Repórtala en privado, no en un issue público: ver [`SECURITY.md`](SECURITY.md).
+
+## Licencia
+
+Todos los derechos reservados. El código es público para que el instalador y las actualizaciones se puedan descargar desde GitHub; no se concede licencia para usarlo, modificarlo ni redistribuirlo fuera de NexoMesa.
 
 ## Qué está probado
 
