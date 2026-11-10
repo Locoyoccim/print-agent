@@ -6,7 +6,7 @@
 # Requisitos: Node.js 22+ (el mismo Node que corre este script se empaqueta en agente.exe) e Inno Setup 6.
 # WinSW se descarga solo si no esta en instalador\gh-agente-servicio.exe.
 param(
-  [string]$Servidor = "https://web-production-3f7840.up.railway.app",
+  [string]$Servidor = "https://app.nexomesa.app",
   [string]$Huella,
   [string]$Pfx
 )

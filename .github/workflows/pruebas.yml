@@ -1,0 +1,35 @@
+name: Pruebas
+
+# Pruebas del agente en cada pull request y en main. Solo lectura del repositorio: el repo es público y este workflow no necesita
+# permisos de escritura ni secretos.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # El agente no debe arrancar si su versión no coincide con package.json (la publica el servidor y la compara la actualización).
+      - name: Versión del código igual a package.json
+        run: |
+          esperada="$(node -p 'require("./package.json").version')"
+          real="$(node src/index.js --version)"
+          echo "package.json=$esperada  agente=$real"
+          test "$esperada" = "$real"

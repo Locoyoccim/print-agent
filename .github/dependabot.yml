@@ -1,0 +1,22 @@
+# Dependabot solo ABRE pull requests (no modifica main). Revisión mensual y agrupada: el agente casi no tiene dependencias
+# (solo herramientas de construcción) y cada PR gasta minutos de CI.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      desarrollo:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      acciones:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
