@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Pruebas de la lógica del ícono (bandeja/Estado.cs), sin ventanas:  dotnet run --project bandeja\pruebas -c Release
+  <!-- Pruebas de la lógica del ícono (bandeja/Estado.cs), sin ventanas:  dotnet run (proyecto bandeja\pruebas, -c Release)
        Termina con código distinto de 0 si alguna falla. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
