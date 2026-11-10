@@ -9,10 +9,14 @@ import { crearApi, VERSION } from "./api.js";
 import { analizarArgs, AYUDA } from "./cli.js";
 import { cargarConfig } from "./config.js";
 import { carpetaDatos, emparejar, guardarConfig } from "./emparejar.js";
+import { crearEstado, rutaEstado } from "./estado.js";
 
+// estado.json para el ícono de Windows (se crea al arrancar el bucle): cada mensaje del registro también queda ahí.
+let estado = null;
 const log = (nivel, mensaje) => {
   const linea = `${new Date().toISOString()} [${nivel}] ${mensaje}`;
   (nivel === "error" ? console.error : console.log)(linea);
+  estado?.evento(nivel, mensaje);
 };
 
 // Direccion del sistema que el instalador trae incluida (se fija al construir el ejecutable; ver scripts/construir.mjs).
@@ -67,8 +71,15 @@ async function principal() {
 
   const ruta = rutaConfig();
   const { errores, config } = cargarConfig(ruta);
+  estado = crearEstado({
+    ruta: rutaEstado({ instalado, rutaConfig: ruta }),
+    version: VERSION,
+    servidor: config?.servidor ?? null,
+    alFallar: (e) => log("warn", `No se pudo guardar el estado para el ícono (${estado.ruta}): ${e.message}`),
+  });
   if (errores.length) {
     for (const e of errores) log("error", e);
+    estado.detener("configuracion");
     process.exit(1);
   }
 
@@ -77,7 +88,10 @@ async function principal() {
   // Solo el ejecutable instalado se actualiza solo; corriendo con `node src/index.js` (desarrollo) no se toca nada.
   if (instalado) {
     const inicio = alArrancar({ dir: dirDatos, exe, log });
-    if (inicio.estado === "revertida") process.exit(CODIGO_REINICIO);
+    if (inicio.estado === "revertida") {
+      estado.detener("actualizando");
+      process.exit(CODIGO_REINICIO);
+    }
   }
 
   const control = new AbortController();
@@ -85,6 +99,7 @@ async function principal() {
   for (const senal of ["SIGINT", "SIGTERM"]) {
     process.on(senal, () => {
       log("info", "Deteniendo el agente...");
+      estado.detener("detenido");
       control.abort();
       setTimeout(() => process.exit(0), 300);
     });
@@ -110,12 +125,18 @@ async function principal() {
     setInterval(() => void revisar(), 6 * 3600_000).unref();
   }
 
-  const agente = crearAgente({ api: apiConSalud, log, zona: config.zona, pagina: config.pagina });
+  estado.iniciar();
+  const agente = crearAgente({ api: apiConSalud, log, estado, zona: config.zona, pagina: config.pagina });
   await agente.correr({ intervaloMs: config.intervaloMs, signal: control.signal });
-  if (reiniciar) process.exit(CODIGO_REINICIO);
+  if (reiniciar) {
+    estado.detener("actualizando");
+    process.exit(CODIGO_REINICIO);
+  }
 }
 
 principal().catch((e) => {
   console.error(`Error inesperado: ${e.stack ?? e.message}`);
+  estado?.evento("error", `Error inesperado: ${e.message}`);
+  estado?.detener("error");
   process.exit(1);
 });
