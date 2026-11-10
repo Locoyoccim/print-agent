@@ -2,9 +2,11 @@ import { render } from "./layout.js";
 import { enviar } from "./transports.js";
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+const SIN_ESTADO = { contacto() {}, errorServidor() {}, impreso() {}, fallo() {} };
 
 // El bucle del agente: pide trabajos, imprime cada uno en su impresora y confirma el resultado.
-export function crearAgente({ api, transporte = enviar, renderizar = render, log = () => {}, zona, pagina, esperaResultadoMs = 500, reintentosResultado = 3 }) {
+// `estado` (ver estado.js) recibe la conexión con el servidor y el resultado de cada impresora para el ícono de Windows.
+export function crearAgente({ api, transporte = enviar, renderizar = render, log = () => {}, estado = SIN_ESTADO, zona, pagina, esperaResultadoMs = 500, reintentosResultado = 3 }) {
   // Entregas ya impresas en esta sesion. Si el servidor no recibio la confirmacion y vuelve a
   // entregar el mismo trabajo, se confirma sin imprimir otra vez (evita comandas duplicadas).
   // Un "Reimprimir" manual sube `reimpresiones`, asi que es otra entrega y si se imprime.
@@ -49,9 +51,11 @@ export function crearAgente({ api, transporte = enviar, renderizar = render, log
       }
     } catch (e) {
       log("error", `Fallo el trabajo ${job.id} (${job.tipo}) en ${job.impresora?.nombre ?? "?"}: ${e.message}`);
+      estado.fallo(job.impresora, e.message);
       return confirmar(job.id, false, e.message);
     }
     recordar(job);
+    estado.impreso(job.impresora);
     log("info", `Impreso ${job.tipo} #${job.id} en ${job.impresora.nombre}`);
     return confirmar(job.id, true);
   }
@@ -80,10 +84,12 @@ export function crearAgente({ api, transporte = enviar, renderizar = render, log
       let espera = intervaloMs;
       try {
         const n = await vuelta();
+        estado.contacto();
         if (fallos > 0) log("info", "Conexion con el servidor restablecida");
         fallos = 0;
         if (n > 0) espera = 0;
       } catch (e) {
+        estado.errorServidor(e.message, e.status ?? null);
         if (e.status === 401) {
           log("error", `El servidor rechazo el token del agente (${e.message}). Revisa config.json o genera un token nuevo en Impresoras.`);
         } else if (fallos === 0 || fallos % 10 === 0) {

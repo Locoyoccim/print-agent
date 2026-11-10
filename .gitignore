@@ -5,3 +5,5 @@ config.json
 *.log
 .DS_Store
 instalador/gh-agente-servicio.exe
+# estado.json: estado del agente para el ícono de Windows (se genera al correr)
+estado.json
