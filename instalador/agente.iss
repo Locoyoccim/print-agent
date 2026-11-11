@@ -139,6 +139,37 @@ begin
   Result := (PageID = PaginaCodigo.ID) and (ParametroCodigo <> '');
 end;
 
+// Corre icacls sobre una ruta; devuelve True si termino bien.
+function Icacls(Ruta, Parametros: String): Boolean;
+var
+  Codigo2: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\icacls.exe'), '"' + Ruta + '" ' + Parametros, '', SW_HIDE, ewWaitUntilTerminated, Codigo2) and (Codigo2 = 0);
+end;
+
+// Deja C:\ProgramData\NexoMesa con dueño Administradores y sin permisos ajenos ANTES de escribir config.json. En ProgramData cualquier
+// usuario puede crear carpetas y queda como su dueño: si un usuario sin privilegios las hubiera creado antes, conservaría el control
+// y podría leer el token o cambiar el servidor del agente (que corre como SYSTEM y se actualiza desde ese servidor). Por eso se toma
+// la posesión, se borran los permisos explícitos y se aplican solo los nuestros. Devuelve '' si salio bien o el mensaje de error.
+function ProtegerCarpetas: String;
+var
+  Raiz: String;
+begin
+  Result := '';
+  Raiz := ExpandConstant('{commonappdata}\NexoMesa');
+  ForceDirectories(Raiz + '\agente');
+  ForceDirectories(Raiz + '\estado');
+  // Dueño Administradores en todo el árbol y permisos de vuelta a los heredados (quita los explícitos de cualquier otro).
+  // Raíz: SYSTEM y Administradores control total; Usuarios solo lectura (para llegar a estado). agente: sin Usuarios (lleva el token).
+  // estado: Usuarios leen estado.json (el ícono) sin poder cambiarlo.
+  if not (Icacls(Raiz, '/setowner *S-1-5-32-544 /T /Q')
+      and Icacls(Raiz, '/reset /T /Q')
+      and Icacls(Raiz, '/inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX /Q')
+      and Icacls(Raiz + '\agente', '/inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F /Q')
+      and Icacls(Raiz + '\estado', '/inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX /Q')) then
+    Result := 'No se pudieron proteger los permisos de ' + Raiz + '. Revisa que ejecutas el instalador como administrador e inténtalo de nuevo.';
+end;
+
 // Canjea el codigo con el propio agente.exe (copia temporal) y deja config.json. Devuelve '' si salio bien o el mensaje de error.
 function Emparejar(Codigo: String): String;
 var
@@ -146,8 +177,9 @@ var
   Codigo2: Integer;
   Lineas: TArrayOfString;
 begin
+  Result := ProtegerCarpetas;
+  if Result <> '' then Exit;
   ExtractTemporaryFile('agente.exe');
-  ForceDirectories(ExpandConstant('{commonappdata}\NexoMesa\agente'));
   Cfg := ExpandConstant('{commonappdata}\NexoMesa\agente\config.json');
   Salida := ExpandConstant('{tmp}\emparejar.txt');
   Comando := '/C ""' + ExpandConstant('{tmp}\agente.exe') + '" emparejar "' + Codigo + '" --config "' + Cfg + '" > "' + Salida + '" 2>&1"';
@@ -188,7 +220,9 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Codigo2: Integer;
 begin
-  Result := '';
+  // Tambien al reinstalar sin codigo: corrige carpetas que existieran con otro dueño o permisos ajenos.
+  Result := ProtegerCarpetas;
+  if Result <> '' then Exit;
   if ParametroCodigo <> '' then
   begin
     Result := Emparejar(ParametroCodigo);
