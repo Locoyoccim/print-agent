@@ -106,6 +106,8 @@ Type: filesandordirs; Name: "{commonappdata}\NexoMesa\estado"
 [Code]
 var
   PaginaCodigo: TInputQueryWizardPage;
+  // Para no dejar el token en disco si se cancela una instalación nueva después de emparejar.
+  ConfigPrevia, EmparejadoAhora, InstalacionTerminada: Boolean;
 
 function ParametroCodigo: String;
 begin
@@ -121,6 +123,25 @@ end;
 function ConfigExistente: Boolean;
 begin
   Result := FileExists(ExpandConstant('{commonappdata}\NexoMesa\agente\config.json'));
+end;
+
+function InitializeSetup: Boolean;
+begin
+  ConfigPrevia := ConfigExistente;
+  Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then InstalacionTerminada := True;
+end;
+
+// Instalación nueva cancelada (o fallida) después de emparejar: se borra config.json, que trae el token del agente. Si ya había
+// una configuración antes (reinstalación), se deja: el servicio instalado la usa.
+procedure DeinitializeSetup;
+begin
+  if EmparejadoAhora and not ConfigPrevia and not InstalacionTerminada then
+    DeleteFile(ExpandConstant('{commonappdata}\NexoMesa\agente\config.json'));
 end;
 
 procedure InitializeWizard;
@@ -188,7 +209,11 @@ begin
     Result := 'No se pudo comprobar el código. Revisa la conexión a internet e inténtalo de nuevo.';
     Exit;
   end;
-  if Codigo2 = 0 then Result := ''
+  if Codigo2 = 0 then
+  begin
+    Result := '';
+    EmparejadoAhora := True;
+  end
   else if LoadStringsFromFile(Salida, Lineas) and (GetArrayLength(Lineas) > 0) then Result := Lineas[0]
   else Result := 'No se pudo conectar este equipo con NexoMesa.';
 end;

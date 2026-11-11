@@ -12,7 +12,7 @@
    `C:\Program Files\NexoMesa\Agente`, guarda `config.json` en `C:\ProgramData\NexoMesa\agente` (solo SYSTEM y
    Administradores) y registra el servicio **NexoMesaAgente** (arranca con Windows y se reinicia solo si falla). Antes de escribir
    `config.json`, el instalador toma la posesión de `C:\ProgramData\NexoMesa` (dueño: Administradores) y reemplaza sus permisos: si
-   un usuario sin privilegios hubiera creado antes esas carpetas, pierde todo acceso. Si no lo logra, no instala nada.
+   un usuario sin privilegios hubiera creado antes esas carpetas, pierde todo acceso. Si no lo logra, no instala nada. Si una instalación nueva se cancela después de emparejar, borra `config.json` (trae el token); en una reinstalación lo conserva.
 4. Todo es tráfico saliente (HTTPS): no se abren puertos.
 5. **Varias PCs:** se ejecuta el instalador en cada una con un código distinto (un agente por PC). Después, en **Impresoras**, cada impresora se asigna a la PC que la alcanza (**PC que la imprime**); sin asignar la toma cualquier agente. Requiere la migración `055_impresora_agente.sql` en el servidor.
 
