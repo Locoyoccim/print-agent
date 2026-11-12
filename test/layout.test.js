@@ -453,3 +453,57 @@ test("layout: una opcion o nota larga se parte con sangria, sin repetir el + ni 
   const enorme = texto(render({ ...precuenta, payload: { ...precuenta.payload, items: [{ ...precuenta.payload.items[0], opciones: ["x".repeat(60)] }] } }));
   for (const l of enorme.split("\n").filter((x) => x.includes("xxx"))) assert.ok(l.replace(/[\x00-\x1f]../g, "").length <= 48, l);
 });
+
+// Pedidos a domicilio: el repartidor necesita a quien buscar, el telefono, el domicilio y las indicaciones.
+const DOMICILIO = {
+  nombre: "Fam. López",
+  telefono: "5512345678",
+  direccion: "Av. Juárez 123, Col. Centro",
+  referencia: "Portón negro",
+  notas: "Tocar fuerte",
+};
+const aDomicilio = (def, domicilio = DOMICILIO, extra = {}) => ({
+  ...def,
+  payload: { ...def.payload, mesa: null, llevar: domicilio.nombre, cliente: null, domicilio, folio: 12, ...extra },
+});
+const visibles = (t) => t.split("\n").map((l) => l.replace(/[\x00-\x1f]\S?\S?\S?/g, ""));
+
+test("layout: precuenta y ticket a domicilio a 80 mm traen el bloque de entrega", () => {
+  for (const def of [precuenta, ticket]) {
+    const t = texto(render(aDomicilio(def), { zona: "America/Mexico_City" }));
+    assert.match(t, /DOMICILIO\s+Folio 12/, def.tipo);
+    assert.match(t, /Fam\. L\xa2pez/, `${def.tipo}: nombre con acento en CP858`);
+    assert.match(t, /Tel\. 55 1234 5678/, def.tipo);
+    assert.match(t, /Av\. Ju\xa0rez 123, Col\. Centro/, def.tipo);
+    assert.match(t, /Ref: Port\xa2n negro/, def.tipo);
+    assert.match(t, /Notas: Tocar fuerte/, def.tipo);
+    assert.doesNotMatch(t, /Llevar:/, `${def.tipo}: no sale como para llevar`);
+    assert.match(t, /DOMICILIO[\s\S]*Tel\.[\s\S]*Ref:[\s\S]*Notas:[\s\S]*Mesero: Ana/, `${def.tipo}: orden del bloque`);
+  }
+});
+
+test("layout: ticket a domicilio a 58 mm con un domicilio de 200 caracteres no pasa de 32 columnas ni pierde texto", () => {
+  const largo = ("Calle Prolongacion Avenida de los Insurgentes Sur numero 1234 interior 5B entre ").repeat(3).slice(0, 200);
+  const dom = { ...DOMICILIO, direccion: largo, referencia: "Edificio azul con porton negro junto a la farmacia de la esquina" };
+  const t = texto(render({ ...aDomicilio(ticket, dom), impresora: { ancho: 58 } }, { zona: "America/Mexico_City" }));
+  for (const l of visibles(t)) assert.ok(l.length <= 32, `linea demasiado larga: ${JSON.stringify(l)}`);
+  const junto = t.replace(/\s+/g, "");
+  assert.ok(junto.includes(largo.replace(/\s+/g, "")), "el domicilio completo esta en el ticket");
+  assert.ok(junto.includes("Ref:Edificioazulconportonnegrojuntoalafarmaciadelaesquina"));
+});
+
+test("layout: comanda a domicilio pone «DOMICILIO: nombre» en grande y las notas, sin el domicilio", () => {
+  const b = render(aDomicilio(comanda, { nombre: "Fam. López", telefono: null, direccion: null, referencia: null, notas: "Tocar fuerte" }));
+  const t = texto(b);
+  assert.match(t, /DOMICILIO: Fam\. L\xa2pez/);
+  const i = b.indexOf(Buffer.from("DOMICILIO:"));
+  assert.ok(i > 0 && b.subarray(Math.max(0, i - 12), i).includes(GRANDE), "el destino va en doble ancho y alto");
+  assert.match(t, /Notas: Tocar fuerte/);
+  assert.doesNotMatch(t, /Llevar:/);
+  assert.doesNotMatch(t, /Ju\xa0rez|Tel\./);
+});
+
+test("layout: sin domicilio, llevar y mesa imprimen igual que antes", () => {
+  assert.match(texto(render({ ...precuenta, payload: { ...precuenta.payload, mesa: null, llevar: "Luis", domicilio: null } })), /Llevar: Luis\s+Folio 7/);
+  assert.doesNotMatch(texto(render(precuenta)), /DOMICILIO/);
+});

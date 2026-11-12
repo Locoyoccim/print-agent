@@ -88,11 +88,30 @@ function renglonImporte(t, item, n) {
   for (const o of item.opciones ?? []) for (const l of conPrefijo(o, "   + ", n)) t.linea(l);
 }
 
+// Telefono de 10 digitos en grupos (55 1234 5678) para dictarlo o marcarlo sin equivocarse; otro formato sale como viene.
+export const telefonoLegible = (tel) => {
+  const d = String(tel ?? "");
+  return /^\d{10}$/.test(d) ? `${d.slice(0, 2)} ${d.slice(2, 6)} ${d.slice(6)}` : d;
+};
+
+// Datos de entrega de un pedido a domicilio (precuenta y ticket): a quien buscar, como llamarle, a donde ir y como encontrarlo.
+// Todo se parte al ancho del papel sin recortar: un domicilio largo no se pierde.
+function bloqueDomicilio(t, d, n) {
+  if (d.nombre) for (const l of envolver(String(d.nombre), n)) t.negrita(true).linea(l).negrita(false);
+  if (d.telefono) t.linea(`Tel. ${telefonoLegible(d.telefono)}`);
+  if (d.direccion) for (const l of envolver(String(d.direccion), n)) t.linea(l);
+  if (d.referencia) for (const l of conPrefijo(String(d.referencia), "Ref: ", n)) t.linea(l);
+  if (d.notas) for (const l of conPrefijo(String(d.notas), "Notas: ", n)) t.linea(l);
+}
+
+// Destino de la cuenta: la mesa, «Llevar: Luis» o, a domicilio, «DOMICILIO» (el nombre va en el bloque de entrega).
+const destinoCuenta = (p) => p.mesa ?? (p.domicilio ? "DOMICILIO" : `Llevar: ${p.llevar ?? ""}`);
+
 function cabeceraCuenta(t, p, n, zona) {
-  const destino = p.mesa ?? `Llevar: ${p.llevar ?? ""}`;
   t.negrita(true);
-  for (const l of dosColumnasCompleto(destino, `Folio ${p.folio}`, n)) t.linea(l);
+  for (const l of dosColumnasCompleto(destinoCuenta(p), `Folio ${p.folio}`, n)) t.linea(l);
   t.negrita(false);
+  if (p.domicilio) bloqueDomicilio(t, p.domicilio, n);
   // Nombre o referencia de la cuenta ("Fam. Hernandez"): en negrita para ubicar la mesa de un vistazo.
   if (p.cliente) for (const l of envolver(String(p.cliente), n)) t.negrita(true).linea(l).negrita(false);
   for (const l of dosColumnasCompleto(p.mesero ? `Mesero: ${p.mesero}` : "", p.personas ? `Pers: ${p.personas}` : "", n)) t.linea(l);
@@ -114,9 +133,12 @@ export function renderComanda(p, { ancho = 80, zona, pagina } = {}) {
   regla(t, n);
   // A la cocina le importa, antes que nada, a QUE mesa va: en grande. Folio, personas y mesero quedan en letra normal.
   t.alinear("centro").negrita(true).tamano(2, 2);
-  for (const l of envolver(p.mesa ?? `Llevar: ${p.llevar ?? ""}`, Math.floor(n / 2))) t.linea(l);
+  const destino = p.mesa ?? (p.domicilio ? `DOMICILIO: ${p.domicilio.nombre ?? p.llevar ?? ""}` : `Llevar: ${p.llevar ?? ""}`);
+  for (const l of envolver(destino, Math.floor(n / 2))) t.linea(l);
   t.tamano(1, 1);
   if (p.cliente) for (const l of envolver(String(p.cliente), n)) t.linea(l);
+  // A domicilio la cocina solo ve las indicaciones del pedido (empacar aparte, sin cubiertos...); el domicilio no le sirve.
+  if (p.domicilio?.notas) for (const l of conPrefijo(String(p.domicilio.notas), "Notas: ", n)) t.linea(l);
   t.negrita(false).alinear("izq");
   t.linea(dosColumnas(`Folio ${p.folio}`, p.personas ? `Pers: ${p.personas}` : "", n));
   if (p.mesero) t.linea(`Mesero: ${p.mesero}`);
