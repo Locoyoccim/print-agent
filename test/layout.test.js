@@ -135,6 +135,8 @@ test("layout: la precuenta muestra importes, cortesia, descuento y total, sin de
   assert.match(t, /TOTAL\s+230\.00/);
   assert.doesNotMatch(t, /IVA/, "el IVA no se desglosa en el ticket");
   assert.match(t, /no es un comprobante de pago/);
+  assert.doesNotMatch(t, /sin jitomate/, "las notas para cocina solo van en la comanda");
+  assert.doesNotMatch(texto(render({ ...precuenta, payload: { ...precuenta.payload, tipo: "TICKET", pagos: [] } })), /sin jitomate/);
 });
 
 test("layout: la precuenta sin descuento no imprime la linea de descuento", () => {

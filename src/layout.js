@@ -172,10 +172,8 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
   regla(t, n);
-  for (const item of p.items) {
-    renglonImporte(t, item, n);
-    if (item.notas) for (const l of envolver(item.notas, n - 4)) t.linea(`   ${l}`);
-  }
+  // Las notas del renglon («sin cebolla») son para preparar: van en la comanda, no en lo que recibe el cliente.
+  for (const item of p.items) renglonImporte(t, item, n);
   regla(t, n);
   const { subtotal, descuento, total } = p.totales;
   t.linea(dosColumnas("Subtotal", dinero(subtotal), n));
