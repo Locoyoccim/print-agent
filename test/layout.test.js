@@ -386,7 +386,7 @@ test("layout: la hoja de prueba lleva el encabezado completo del negocio", () =>
   assert.match(t, /Impresora: Barra/);
 });
 
-// ---- comanda con interlineado compacto y detalle en grande; precuenta en doble alto ----
+// ---- comanda con interlineado compacto y detalle en grande; precuenta con los tamanos del ticket ----
 const ALTO = Buffer.from([0x1d, 0x21, 0x01]); // GS ! 0x01 = doble alto, ancho normal
 const antes = (b, txt, cmd) => {
   const i = b.indexOf(Buffer.from(txt, "latin1"));
@@ -409,15 +409,17 @@ test("layout: opciones, comensal y notas de la comanda van en doble alto y negri
   assert.match(t, /\x1d!\x00\x1bE\x00-{48}\n\x1bd/);
 });
 
-test("layout: la precuenta va en doble alto de PRECUENTA al total; el encabezado y la leyenda no", () => {
+test("layout: la precuenta usa los tamanos del ticket de venta: cuerpo normal y solo el TOTAL en doble alto", () => {
   const b = render(conNegocio(precuenta, DATOS));
-  assert.ok(antes(b, "PRECUENTA", ALTO), "titulo en doble alto");
   const t = texto(b);
   const cuerpo = t.slice(t.indexOf("PRECUENTA"), t.indexOf("Precuenta: no es"));
-  assert.equal(cuerpo.slice(0, cuerpo.indexOf("TOTAL")).includes("\x1d!\x00"), false, "nada regresa a tamano normal antes del total");
-  assert.match(cuerpo, /2 Latte\s+110\.00\n\s+2 x 55\.00/, "las columnas se conservan (doble alto no ensancha)");
+  assert.equal(cuerpo.slice(0, cuerpo.indexOf("TOTAL") - 3).includes("\x1d!\x01"), false, "nada en doble alto antes del renglon del total");
+  assert.ok(antes(b, "TOTAL", ALTO), "el total en doble alto");
   assert.match(cuerpo, /TOTAL\s+230\.00\n\x1d!\x00/, "tras el total vuelve a tamano normal");
-  assert.equal(antes(b, "Tel. 33", ALTO), false, "el telefono sigue en tamano normal");
+  // Mismo tamano en el renglon del total que el ticket de venta.
+  const tk = texto(render(conNegocio(ticket, DATOS)));
+  const total = (x) => x.match(/[^\n]{0,8}TOTAL[^\n]*\n[^\n]{0,4}/)[0];
+  assert.equal(total(t), total(tk));
   assert.ok(t.split("\n").every((l) => l.replace(/[\x00-\x1f][^\x00-\x1f\n]{0,2}/g, "").length <= 48 + 3));
 });
 

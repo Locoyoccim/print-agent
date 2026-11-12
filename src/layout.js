@@ -144,9 +144,8 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   const n = columnas(ancho);
   const t = new Ticket({ pagina });
   encabezadoNegocio(t, p, n);
-  // Todo el cuerpo (de "PRECUENTA" al total) va en doble alto para leerlo en la mesa; el doble alto no ensancha las letras, asi que
-  // se conservan las n columnas. Direccion, telefono y la leyenda final quedan en tamano normal.
-  t.tamano(1, 2).negrita(true).linea("PRECUENTA").negrita(false);
+  // Mismos tamanos que el ticket de venta: cuerpo en tamano normal y solo el TOTAL en doble alto (la comanda es la que va en grande).
+  t.negrita(true).linea("PRECUENTA").negrita(false);
   t.alinear("izq");
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
@@ -159,7 +158,7 @@ export function renderPrecuenta(p, { ancho = 80, zona, pagina } = {}) {
   const { subtotal, descuento, total } = p.totales;
   t.linea(dosColumnas("Subtotal", dinero(subtotal), n));
   if (descuento > 0) t.linea(dosColumnas("Descuento", `-${dinero(descuento)}`, n));
-  t.negrita(true).linea(dosColumnas("TOTAL", dinero(total), n)).tamano(1, 1).negrita(false);
+  t.negrita(true).tamano(1, 2).linea(dosColumnas("TOTAL", dinero(total), n)).tamano(1, 1).negrita(false);
   t.linea("");
   t.alinear("centro");
   for (const l of envolver("Precuenta: no es un comprobante de pago.", n)) t.linea(l);
