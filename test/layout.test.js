@@ -181,7 +181,8 @@ test("layout: el ticket muestra total, pagos por metodo, propina y cambio", () =
   const t = texto(render(ticket));
   assert.match(t, /TICKET DE VENTA/);
   assert.match(t, /Mesa 4\s+Folio 12/);
-  assert.match(t, /Cajero: Luis/);
+  assert.doesNotMatch(t, /Cajero/, "el ticket ya no imprime el nombre del cajero");
+  assert.match(t, /CAMBIO[^\n]*\n[^\n]*\n\n\n[^\n]*Gracias por su visita/, "tres renglones en blanco entre el cambio y el agradecimiento");
   assert.match(t, /2 Latte\s+110\.00/);
   assert.match(t, /TOTAL\s+230\.00/);
   assert.match(t, /Tarjeta\s+130\.00/);

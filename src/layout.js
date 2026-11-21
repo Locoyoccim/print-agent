@@ -207,7 +207,6 @@ export function renderTicket(p, { ancho = 80, zona, pagina, esCopia = false } = 
   t.negrita(false).alinear("izq");
   regla(t, n);
   cabeceraCuenta(t, p, n, zona);
-  if (p.cajero) t.linea(`Cajero: ${p.cajero}`);
   regla(t, n);
   for (const item of p.items) renglonImporte(t, item, n);
   regla(t, n);
@@ -231,7 +230,8 @@ export function renderTicket(p, { ancho = 80, zona, pagina, esCopia = false } = 
     for (const pago of p.pagos ?? []) if (!(Number(pago.monto) > 0) && pago.referencia) t.linea(`  Ref: ${pago.referencia}`);
   }
   if (Number(p.cambio) > 0) t.negrita(true).linea(dosColumnas("CAMBIO", dinero(p.cambio), n)).negrita(false);
-  t.linea("");
+  // Tres renglones en blanco separan los importes del agradecimiento (antes uno: quedaba pegado al cambio).
+  t.linea("").linea("").linea("");
   t.alinear("centro");
   t.negrita(true).linea("Gracias por su visita").negrita(false);
   for (const l of envolver("Este ticket no es un comprobante fiscal.", n)) t.linea(l);
